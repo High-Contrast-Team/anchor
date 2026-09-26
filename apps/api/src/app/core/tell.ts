@@ -19,7 +19,8 @@ export async function tell(
   say?: string,
 ): Promise<{ messageId: string; voice?: Media } | undefined> {
   const transport = ctx.transport(family.id);
-  const text = member.choices.voice && spoken(message) ? (say ?? spoken(message)) : undefined;
+  const words = spoken(message);
+  const text = member.choices.voice && words ? (say ?? words) : undefined;
   try {
     if (text) {
       try {

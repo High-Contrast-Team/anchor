@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { dayIndex, slotIn } from '../core/clock';
+import { dayIndex, slotIn, WEEK_MS } from '../core/clock';
 import { dateOf, lines } from '../core/lines';
 import { shortId } from '../core/offers';
 import { byPriority } from '../core/priority';
@@ -12,7 +12,6 @@ import { asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filte
 import { captionFor } from './memories';
 import { nextSteps } from './members';
 
-const WEEK_MS = 7 * 86_400_000;
 const MAX_MOMENTS = 5;
 const KINDS = ['story', 'unsure', 'question', 'request', 'other'] as const;
 const REPLY_SCHEMA = {
@@ -29,7 +28,7 @@ type Reading = { kind: (typeof KINDS)[number]; transcript: string };
 
 // the spike of 2026-09-26, decisions 6 and 10: up to 5 moments of the past week, the member's own included, oldest first; a week with no moment
 // takes the 5 newest, so a run of more than 7 jumps still gets a memory
-export function weekOf(family: Family, member: Member, slot: number): Moment[] {
+function weekOf(family: Family, member: Member, slot: number): Moment[] {
   const hidden = new Set(member.hidden);
   const shown = family.moments
     .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && moment.savedAt <= slot)
@@ -165,7 +164,7 @@ async function tap(action: string, event: Incoming, invitation: Invitation, fami
     await tell(family, member, { text: lines.askCall(sharer.name), buttons }, ctx);
   } else if (action === 'call' && !sharer) {
     await change([]);
-  } else if (action === 'call' && !invitation.askedCall) {
+  } else if (action === 'call' && sharer && !invitation.askedCall) {
     invitation.askedCall = true;
     ctx.store.save();
     await done(lines.done.askedCall(sharer.name));

@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { WEEK_MS } from '../core/clock';
 import { cut, dateOf, lines } from '../core/lines';
 import type { Context, Family, Feature, Moment } from '../core/types';
 import { ask, valid } from '../model/model';
@@ -6,8 +7,6 @@ import { pictureOf } from './capture/filter';
 import { eventTime } from './memories';
 
 const logger = new Logger('Echoes');
-// two events of one week are not then and now, so a demo week of beach photos never posts an unplanned album; an old photo shared today still echoes
-const WEEK_MS = 7 * 86_400_000;
 
 type Answer = { momentId: string; earlier: string };
 
@@ -22,7 +21,9 @@ async function checkOne(family: Family, momentId: string, ctx: Context) {
   const moment = family.moments.find((item) => item.id === momentId);
   if (!moment || moment.sensitive || moment.echo) return;
   // ponytail: every older moment of another sender is a candidate; cap to recent ones when a record reaches thousands of moments
-  const apart = (other: Moment) => Math.abs(eventTime(moment) - eventTime(other)) >= WEEK_MS;
+  // two events of one week are not then and now, so a demo week of beach photos never posts an unplanned album; an old photo shared today still echoes
+  const happened = eventTime(moment);
+  const apart = (other: Moment) => Math.abs(happened - eventTime(other)) >= WEEK_MS;
   const candidates = family.moments.filter((other) => other.savedAt < moment.savedAt && apart(other) && other.by.id !== moment.by.id && !other.sensitive);
   if (!candidates.length) return;
   const candidateIds = candidates.map((candidate) => candidate.id);

@@ -31,6 +31,7 @@ function sharedBy(moment: Moment, max = 600): string {
 // "Nikos", "Nikos and Eleni", or "Nikos, Eleni, and Maria"
 const list = new Intl.ListFormat('en');
 const and = (names: string[]) => list.format(names);
+const sharers = (moments: Moment[]) => and([...new Set(moments.map((moment) => moment.by.name))]);
 
 export type ChoiceName = 'moments' | 'reminders' | 'shares' | 'voice' | 'call';
 
@@ -67,7 +68,7 @@ export const lines = {
   // the private memory of the spike of 2026-09-26: an album of the week, then one message with the buttons
   weekLabel: 'This week in the family',
   weekMemory: (caption: string) => `This week in the family 💛\n${caption}`,
-  weekShared: (moments: Moment[]) => `${and([...new Set(moments.map((moment) => moment.by.name))])} shared ${moments.length} moments.`,
+  weekShared: (moments: Moment[]) => `${sharers(moments)} shared ${moments.length} moments.`,
   remindYou: 'What does it remind you of?',
   // the voice says the description after the sharer's words, so a member who cannot see the picture well hears what it shows
   spokenMoment: (moment: Moment) => [sharedBy(moment), moment.description].filter(Boolean).join('\n'),
@@ -90,7 +91,7 @@ export const lines = {
   collectionReply: 'Reply to a photo to add your story.',
   // section 4.16: the fallback when the model writes no caption
   collectionCaption: (label: string, tag: string, moments: Moment[]) =>
-    `${label} 💛\n${tag}, in ${moments.length} moments that ${and([...new Set(moments.map((moment) => moment.by.name))])} shared.\nReply to a photo to add your story.`,
+    `${label} 💛\n${tag}, in ${moments.length} moments that ${sharers(moments)} shared.\nReply to a photo to add your story.`,
   memoryCaption: (label: string, moment: Moment) =>
     `${label} 💛\n${sharedBy(moment)}\nReply with a story or a voice note to add it to the family record.`,
   labels: {

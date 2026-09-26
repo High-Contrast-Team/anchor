@@ -1,5 +1,7 @@
 import type { State, Window } from './types';
 
+export const WEEK_MS = 7 * 86_400_000;
+
 export function demoNow({ clockStart, clockOffset }: Pick<State, 'clockStart' | 'clockOffset'>, daySeconds: number, realNow = Date.now()): number {
   return Math.round(clockStart + ((realNow - clockStart) * 86400) / daySeconds + clockOffset);
 }
