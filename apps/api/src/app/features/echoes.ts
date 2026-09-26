@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { WEEK_MS } from '../core/clock';
 import { cut, dateOf, lines } from '../core/lines';
 import type { Context, Family, Feature, Moment } from '../core/types';
 import { ask, valid } from '../model/model';
@@ -19,7 +20,9 @@ async function checkOne(family: Family, momentId: string, ctx: Context) {
   const moment = family.moments.find((item) => item.id === momentId);
   if (!moment || moment.sensitive || moment.echo) return;
   // ponytail: every older moment of another sender is a candidate; cap to recent ones when a record reaches thousands of moments
-  const candidates = family.moments.filter((other) => other.savedAt < moment.savedAt && other.by.id !== moment.by.id && !other.sensitive);
+  // ponytail: the spike of 2026-09-26, decision 9, skips a candidate saved in the last 7 days, so two stage photos never post an unplanned album;
+  // the model's eventDate would let an old photo echo a moment of the same week, at the cost of that stage safety
+  const candidates = family.moments.filter((other) => other.savedAt <= moment.savedAt - WEEK_MS && other.by.id !== moment.by.id && !other.sensitive);
   if (!candidates.length) return;
   const candidateIds = candidates.map((candidate) => candidate.id);
   const prompt = [

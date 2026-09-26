@@ -22,7 +22,7 @@ vi.mock('../model/model', async (importOriginal) => ({
 const wav = Buffer.from('RIFF clip');
 
 const ALL_OFF: Choices = { moments: false, reminders: false, shares: false, voice: false, call: false };
-const DEFAULT_CHOICES: Choices = { moments: false, reminders: true, shares: true, voice: false, call: false };
+const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
 let now: number;
 let file: string;
@@ -170,8 +170,8 @@ test('a failed edit logs and changes nothing else', async () => {
   const member = ctx.store.joinMember(family, { id: '7', name: 'Nikos' });
   vi.spyOn(transport, 'edit').mockRejectedValue(new Error('message gone'));
   const warn = vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-  expect(await receive(fromNikos({ button: 'set:moments', messageId: 'msg-1' }))).toBe(true);
-  expect(member.choices.moments).toBe(true);
+  expect(await receive(fromNikos({ button: 'set:voice', messageId: 'msg-1' }))).toBe(true);
+  expect(member.choices.voice).toBe(true);
   expect(warn).toHaveBeenCalled();
 });
 
@@ -228,7 +228,7 @@ test('stop turns every choice off, sets started false, closes the invitation, an
   const member = ctx.store.joinMember(family, { id: '7', name: 'Nikos' });
   member.started = true;
   member.choices = { moments: true, reminders: true, shares: true, voice: true, call: true };
-  member.invitation = { momentId: 'm1', day: 0, messageIds: [], shareAsked: false, helped: false, sentAt: now, replied: false };
+  member.invitation = { id: 'abcd1234', momentId: 'm1', momentIds: ['m1'], shareAsked: false, helped: false };
   await receive(fromNikos({ text: '/stop' }));
   expect(member).toMatchObject({ started: false, choices: ALL_OFF, invitation: undefined });
   expect(messages()).toEqual([['7', { text: lines.stopped }]]);

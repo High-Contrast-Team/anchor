@@ -6,7 +6,7 @@ import { openStore } from './store';
 import type { Choices } from './types';
 
 const stateFile = () => join(mkdtempSync(join(tmpdir(), 'anchor-store-')), 'state.json');
-const DEFAULT_CHOICES: Choices = { moments: false, reminders: true, shares: true, voice: false, call: false };
+const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
 test('the first boot sets clockStart once, and a restart keeps it', () => {
   const file = stateFile();

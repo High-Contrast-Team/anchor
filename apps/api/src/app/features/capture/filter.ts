@@ -13,7 +13,7 @@ export type Bundle = {
   family: Family; // a reference, so the bundle still matches after a migration changes family.id
   sender: Person;
   events: Incoming[];
-  closing?: boolean; // the classification runs
+  closing?: Promise<void>; // the classification runs
   sensitive?: boolean; // a keep-quiet arrived before the bundle closed (R5)
   sealed?: boolean; // a newer picture from the sender started its own bundle
 };
@@ -75,8 +75,9 @@ export function isClosed(bundle: Bundle, realNow: number): boolean {
   const last = bundle.events[bundle.events.length - 1];
   if (realNow - last.at >= BUNDLE_GAP_MS) return true;
   if (last.albumId !== undefined && realNow - last.at < ALBUM_GRACE_MS) return false;
-  const hasWords = bundle.events.some((event) => event.voice || wordCount(event.text) > 0);
-  return bundle.events.some(hasPicture) && hasWords;
+  // a voice note without a picture closes at once, so its ❤ lands within seconds; a later picture starts its own bundle
+  if (bundle.events.some((event) => event.voice)) return true;
+  return bundle.events.some(hasPicture) && bundle.events.some((event) => wordCount(event.text) > 0);
 }
 
 export function worthClassifying(bundle: Bundle): boolean {

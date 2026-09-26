@@ -9,15 +9,18 @@ export const VOICE_STYLE = 'warm, calm and slow, like a kind family friend talki
 // a line with a picture, a voice note, an album, or a contact goes out as it is
 const spoken = (message: Outgoing) => (message.photo || message.video || message.voice || message.album || message.contact ? undefined : message.text);
 
-// v2, section 4.14: every private line goes through tell, and a member with the voice choice hears each text line
+// v2, section 4.14: every private line goes through tell, and a member with the voice choice hears each text line; `say` replaces the words
+// that the voice says, and the text stays the caption
 export async function tell(
   family: Family,
   member: Member,
   message: Outgoing,
   ctx: Context,
+  say?: string,
 ): Promise<{ messageId: string; voice?: Media } | undefined> {
   const transport = ctx.transport(family.id);
-  const text = member.choices.voice ? spoken(message) : undefined;
+  const words = spoken(message);
+  const text = member.choices.voice && words ? (say ?? words) : undefined;
   try {
     if (text) {
       try {

@@ -6,7 +6,7 @@ import type { Choices, Family, Member, State, Store } from './types';
 const logger = new Logger('Store');
 
 // v2, section 4.11: the choices of a new member
-const DEFAULT_CHOICES: Choices = { moments: false, reminders: true, shares: true, voice: false, call: false };
+const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
 // ponytail: each save rewrites the whole record; move to SQLite when a save gets slow or a second process writes
 export function openStore(file: string, realNow = Date.now()): Store {

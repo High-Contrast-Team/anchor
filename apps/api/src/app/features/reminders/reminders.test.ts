@@ -96,8 +96,8 @@ test('the pills sentence offers Nikos a reminder at 08:00 that only he sees, and
         text: `⏰ Eleni wrote: «${PILLS}»\nShall I remind you?`,
         buttons: [
           { label: 'Yes, at 08:00', data: `rem:${id}:08:00` },
-          { label: 'Another time', data: `rem:${id}:more` },
-          { label: 'No thanks', data: `rem:${id}:no` },
+          { label: 'Pick another time', data: `rem:${id}:more` },
+          { label: 'No, thanks', data: `rem:${id}:no` },
           { label: 'Stop offering reminders', data: `rem:${id}:stop` },
         ],
         onlyFor: '42',
@@ -146,7 +146,7 @@ test('an offer with no time shows the four default times', async () => {
     { label: 'Yes, at 12:00', data: `rem:${id}:12:00` },
     { label: 'Yes, at 18:00', data: `rem:${id}:18:00` },
     { label: 'Yes, at 21:00', data: `rem:${id}:21:00` },
-    { label: 'No thanks', data: `rem:${id}:no` },
+    { label: 'No, thanks', data: `rem:${id}:no` },
     { label: 'Stop offering reminders', data: `rem:${id}:stop` },
   ]);
   await router.route(tap(`rem:${id}:18:00`));
@@ -171,7 +171,7 @@ test('"Another time" swaps the buttons in place for four times around the sugges
           { label: 'Yes, at 07:30', data: `rem:${id}:07:30` },
           { label: 'Yes, at 08:30', data: `rem:${id}:08:30` },
           { label: 'Yes, at 09:00', data: `rem:${id}:09:00` },
-          { label: 'No thanks', data: `rem:${id}:no` },
+          { label: 'No, thanks', data: `rem:${id}:no` },
         ],
         onlyFor: '42',
       },
@@ -360,7 +360,7 @@ test('a private request gets the offer in private, with no stop button, and a ta
       messageId: 'sent-1',
       message: {
         text: '⏰ «remind me about my pills»\nWhen shall I remind you?',
-        buttons: [...['08:00', '12:00', '18:00', '21:00'].map((time) => ({ label: `Yes, at ${time}`, data: `rem:${id}:${time}` })), { label: 'No thanks', data: `rem:${id}:no` }],
+        buttons: [...['08:00', '12:00', '18:00', '21:00'].map((time) => ({ label: `Yes, at ${time}`, data: `rem:${id}:${time}` })), { label: 'No, thanks', data: `rem:${id}:no` }],
       },
     },
   ]);
@@ -411,7 +411,7 @@ test('a group message that tells a birthday saves it, and each member who starte
   const id = family.reminders[0].id;
   expect(transport.sent[0].message.buttons).toEqual([
     { label: 'Yes, remind me', data: `rem:${id}:yes` },
-    { label: 'No thanks', data: `rem:${id}:no` },
+    { label: 'No, thanks', data: `rem:${id}:no` },
   ]);
   expect(seen).toEqual([group(text)]);
 

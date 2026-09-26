@@ -9,7 +9,7 @@ import { openStore } from '../core/store';
 import type { Choices, Incoming } from '../core/types';
 import { intro } from './intro';
 
-const DEFAULT_CHOICES: Choices = { moments: false, reminders: true, shares: true, voice: false, call: false };
+const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
 function setup() {
   const file = join(mkdtempSync(join(tmpdir(), 'anchor-intro-')), 'state.json');

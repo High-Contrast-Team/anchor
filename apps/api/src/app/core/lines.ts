@@ -28,12 +28,10 @@ function sharedBy(moment: Moment, max = 600): string {
   return `${moment.by.name} shared ${kind}: ${moment.title}`;
 }
 
-// the voice says the description after the sharer's words, so a member who cannot see the picture well hears what it shows
-const invite = (moment: Moment, description?: string) => [sharedBy(moment), description, 'What does it remind you of?'].filter(Boolean).join('\n');
-
 // "Nikos", "Nikos and Eleni", or "Nikos, Eleni, and Maria"
 const list = new Intl.ListFormat('en');
 const and = (names: string[]) => list.format(names);
+const sharers = (moments: Moment[]) => and([...new Set(moments.map((moment) => moment.by.name))]);
 
 export type ChoiceName = 'moments' | 'reminders' | 'shares' | 'voice' | 'call';
 
@@ -67,12 +65,33 @@ export const lines = {
   nothingNew: "You're up to date 💛 Nothing new since we last talked.",
   callFailed: "I couldn't ring you just now. Shall I send you a moment here instead?",
   sharedBy,
-  invitation: (moment: Moment) => invite(moment),
-  spokenInvitation: (moment: Moment) => invite(moment, moment.description),
+  // the private memory of the spike of 2026-09-26: an album of the week, then one message with the buttons
+  weekLabel: 'This week in the family',
+  weekMemory: (caption: string) => `This week in the family 💛\n${caption}`,
+  weekShared: (moments: Moment[]) => `${sharers(moments)} shared ${moments.length} moments.`,
+  remindYou: 'What does it remind you of?',
+  // the voice says the description after the sharer's words, so a member who cannot see the picture well hears what it shows
+  spokenMoment: (moment: Moment) => [sharedBy(moment), moment.description].filter(Boolean).join('\n'),
+  aboutMoments: (moments: Moment[], spoken = false) =>
+    moments.flatMap((moment) => [`${sharedBy(moment, 120)} · ${dateOf(moment)}`, ...(spoken && moment.description ? [moment.description] : [])]).join('\n'),
+  // the team writes the one-tap replies, so the model never puts words in the member's mouth
+  familyReplies: [
+    ['❤️', 'Sending my love'],
+    ['😊', 'That made me smile'],
+    ['💛', 'I miss you all'],
+  ] as const,
+  familyReply: (name: string, [emoji, words]: readonly [string, string]) => `${name}: «${words} ${emoji}»`,
+  askCall: (name: string) => `Shall I ask ${name} to call you?`,
+  done: {
+    sent: '✅ Sent to the family',
+    later: '✅ Another day, then',
+    hidden: "✅ I won't show you these again",
+    askedCall: (name: string) => `✅ Asked ${name} to call you`,
+  },
   collectionReply: 'Reply to a photo to add your story.',
   // section 4.16: the fallback when the model writes no caption
   collectionCaption: (label: string, tag: string, moments: Moment[]) =>
-    `${label} 💛\n${tag}, in ${moments.length} moments that ${and([...new Set(moments.map((moment) => moment.by.name))])} shared.\nReply to a photo to add your story.`,
+    `${label} 💛\n${tag}, in ${moments.length} moments that ${sharers(moments)} shared.\nReply to a photo to add your story.`,
   memoryCaption: (label: string, moment: Moment) =>
     `${label} 💛\n${sharedBy(moment)}\nReply with a story or a voice note to add it to the family record.`,
   labels: {
@@ -90,7 +109,6 @@ export const lines = {
   shared: 'Done, the family can hear it now 💛',
   notShared: "Of course. I won't share it.",
   notNow: 'No problem 🙂 Another time.',
-  dontBringBack: "Of course. I'll keep it, and I won't bring it back.",
   storyAdded: (name: string, sender: string, story: string) => `${name} added a story to ${sender}'s moment 🎙️\n«${clip(story)}»`,
   echoCaption: (then: Moment, now: Moment) => `Then and now 💛\n${sharedBy(then, 450)}\n${sharedBy(now, 450)}`,
   fastforwarded: (date: string) => `⏩ It's now ${date} on the family clock.`,
@@ -166,16 +184,17 @@ export const lines = {
   },
   buttons: {
     start: 'Start',
-    // v2: the user's wording for the three invitation buttons
+    // the buttons of a private memory: a label says what a tap does, and the most useful button comes first
+    tellMeMore: 'Tell me more',
+    replyToFamily: 'Reply to the family',
     notNow: 'Later, please',
-    dontBringBack: "Don't show me this again",
-    whatIsThis: 'Tell me about it',
+    dontShowThese: "Don't show me these again",
+    askCall: (name: string) => `Yes, ask ${name}`,
     share: 'Yes, share it',
-    dontShare: 'No, thanks',
     // v2, section 4.13: the reminder offer buttons
     remindAt: (time: string) => `Yes, at ${time}`,
-    anotherTime: 'Another time',
-    noThanks: 'No thanks',
+    anotherTime: 'Pick another time',
+    noThanks: 'No, thanks',
     stopReminders: 'Stop offering reminders',
     remindMe: 'Yes, remind me',
     // v2, sections 4.6, 4.11, and 4.12
@@ -190,7 +209,7 @@ export const lines = {
     done: 'Done',
     sharePhone: 'Share my phone number',
     sendIt: 'Yes, send it',
-    stopOffering: 'Stop offering this',
+    stopOffering: 'Stop offering to share',
     anotherMoment: 'Send me a moment',
     whatDidIMiss: 'What did I miss?',
     mySettings: 'My settings',

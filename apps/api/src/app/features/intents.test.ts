@@ -26,7 +26,7 @@ vi.mock('../model/model', async (importOriginal) => ({
 
 vi.mock('./calls', async (importOriginal) => ({ ...(await importOriginal<typeof import('./calls')>()), callMember: vi.fn() }));
 
-const DEFAULT_CHOICES: Choices = { moments: false, reminders: true, shares: true, voice: false, call: false };
+const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 const NOW = new Date(2026, 8, 25, 12).getTime();
 
 function setup() {

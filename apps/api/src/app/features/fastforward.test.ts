@@ -7,7 +7,11 @@ import { lines } from '../core/lines';
 import { createRouter } from '../core/router';
 import { openStore } from '../core/store';
 import type { Context, Incoming } from '../core/types';
+import { ask } from '../model/model';
+import { bundles } from './capture/capture';
 import { fastforward } from './fastforward';
+
+vi.mock('../model/model', async (importOriginal) => ({ ...(await importOriginal<typeof import('../model/model')>()), ask: vi.fn() }));
 
 const NOW = new Date(2026, 8, 25, 12).getTime();
 
@@ -149,4 +153,18 @@ test('an ephemeral command gets every reply only for the presenter, with no repl
     { text: lines.fastforwardUsage, onlyFor: '1' },
     { text: "⏩ It's now 2 October 2026 at 12:00 on the family clock.", onlyFor: '1' },
   ]);
+});
+
+test('a jump first saves every open bundle of the family, so a text posted a minute before joins the memory of the next day', async () => {
+  const { store, transport, router } = setup();
+  transport.admins.add('1');
+  const family = store.family('-100');
+  if (!family) throw new Error('no family');
+  vi.mocked(ask).mockResolvedValue({ verdict: 'family_moment', salience: 3, people: [], eventDate: '', title: 'Sunday lunch', transcript: '' });
+  bundles.push({ family, sender: { id: '2', name: 'Eleni' }, events: [{ ...command('Lunch at grandma’s on Sunday with the cousins'), messageId: 'msg-0' }] });
+
+  await router.route(command('/fastforward 1'));
+  expect(family.moments).toEqual([expect.objectContaining({ text: 'Lunch at grandma’s on Sunday with the cousins', savedAt: NOW })]);
+  expect(store.state.clockOffset).toBe(86_400_000);
+  expect(bundles).toEqual([]);
 });

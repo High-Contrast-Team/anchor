@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { WEEK_MS } from '../core/clock';
 import { dateOf, lines } from '../core/lines';
 import { tell } from '../core/tell';
 import type { Context, Family, Feature, Incoming, Member, Moment } from '../core/types';
@@ -17,7 +18,6 @@ import { TIME } from './reminders/rules';
 import { answer, answerTalk, remember } from './talk';
 
 const logger = new Logger('Intents');
-const SEVEN_DAYS_MS = 7 * 86_400_000;
 const ABOUT = /\b(?:of|about|with)\b/i;
 const MEMORY_WORDS = /\b(?:memor(?:y|ies)|photos?|pictures?|pics|moments?|albums?|show (?:me|us))\b/i;
 // "Give me a memory", "can we have a moment?", or "any memories?" asks for any memory and only makes sense to Anchor, so it posts one without
@@ -284,7 +284,7 @@ async function privateFind(momentId: string | undefined, family: Family, member:
 }
 
 async function privateMissed(family: Family, member: Member, ctx: Context): Promise<void> {
-  const since = member.seenAt ?? ctx.now() - SEVEN_DAYS_MS;
+  const since = member.seenAt ?? ctx.now() - WEEK_MS;
   const candidates = family.moments
     .filter((moment) => !moment.sensitive && moment.by.id !== member.id && moment.savedAt > since)
     .sort((a, b) => a.savedAt - b.savedAt);

@@ -1,5 +1,6 @@
 import { lines } from '../core/lines';
 import type { Feature } from '../core/types';
+import { flush } from './capture/capture';
 import { TIME, nextLocal } from './reminders/rules';
 
 export const fastforward: Feature = {
@@ -19,6 +20,7 @@ export const fastforward: Feature = {
       await ctx.transport(family.id).send(event.chatId, { text: lines.fastforwardUsage, ...to });
       return true;
     }
+    await flush(family, ctx);
     const now = ctx.now();
     ctx.store.state.clockOffset += clock ? nextLocal(now, argument) - now : days * 86_400_000;
     ctx.store.save();

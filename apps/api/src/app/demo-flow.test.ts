@@ -23,6 +23,8 @@ vi.mock('./model/model', async (importOriginal) => ({
 const HOUR = 3_600_000;
 const eleni: Person = { id: 'u-eleni', name: 'Eleni' };
 const nikos: Person = { id: 'u-nikos', name: 'Nikos' };
+const sofia: Person = { id: 'u-sofia', name: 'Sofia' };
+const alexandros: Person = { id: 'u-alexandros', name: 'Alexandros' };
 const maria = "Maria's first day of school! She wore her new red backpack.";
 const nikosFirstDay = 'My first day of school, 1958. My mother walked me to the gate.';
 const nikosStory = 'My first day was in 1958. My mother walked me to the village school, and I cried at the gate.';
@@ -47,6 +49,7 @@ function setup() {
   transport.files.set('photo-maria', { data: Buffer.from('maria jpeg'), mimeType: 'image/jpeg' });
   transport.files.set('photo-1958', { data: Buffer.from('1958 jpeg'), mimeType: 'image/jpeg' });
   transport.files.set('voice-nikos', { data: Buffer.from('nikos ogg'), mimeType: 'audio/ogg' });
+  for (const id of ['photo-beach', 'photo-castle', 'voice-castle']) transport.files.set(id, { data: Buffer.from(id), mimeType: 'application/octet-stream' });
   let restart = false;
   const ctx: Context = { now: () => demoNow(store.state, 86400), store, transport: () => transport, restartWindow: () => (restart = true) };
   const router = createRouter(FEATURES, ctx);
@@ -91,6 +94,7 @@ vi.mocked(model.ask).mockImplementation(async (prompt: string, schema: object) =
   if (properties.intent) return prompt.includes(': "can you send me the family photos?"') ? { intent: 'sendMe', momentId: 'none' } : { intent: 'find', momentId };
   if (properties.kind) return { kind: 'story', transcript: nikosStory };
   if (properties.offer) return prompt.includes('pills') ? { offer: true, who: nikos.id, time: '08:00' } : { offer: false, who: 'unknown', time: '' };
+  if (properties.caption) return { caption: 'Eleni and Alexandros shared a day at the beach.' };
   return { momentId };
 });
 
@@ -107,18 +111,15 @@ test('the v2 demo script: Nikos joins and chooses, a share offer, his voice stor
   const chooseButton = { label: lines.buttons.chooseForMe, url: transport.startLink('-100') };
   expect(transport.sent).toEqual([{ chatId: '-100', messageId: 'sent-1', message: { text: lines.nudge('Nikos'), buttons: [chooseButton], onlyFor: nikos.id } }]);
 
-  // beat 2: Start, two choices that turn ✅ in place, and Done as a voice note
+  // beat 2: Start with family moments on, the voice choice that turns ✅ in place, and Done as a voice note
   await whisper(nikos, { text: '/start -100' });
   const member = family.members.find((person) => person.id === nikos.id);
   expect(member?.started).toBe(true);
   expect(transport.sent.at(-1)?.message.text).toBe(lines.welcome('Nikos'));
   const screen = transport.sent.at(-1)?.messageId ?? '';
-  await whisper(nikos, { button: 'set:moments', messageId: screen });
   await whisper(nikos, { button: 'set:voice', messageId: screen });
-  expect(transport.edits.map(({ messageId, change }) => [messageId, change])).toEqual([
-    [screen, { buttons: expect.arrayContaining([{ label: `✅ ${lines.buttons.choices.moments}`, data: 'set:moments' }]) }],
-    [screen, { buttons: member && choiceButtons(member) }],
-  ]);
+  expect(transport.edits.map(({ messageId, change }) => [messageId, change])).toEqual([[screen, { buttons: member && choiceButtons(member) }]]);
+  expect(member?.choices).toMatchObject({ moments: true, voice: true });
   await whisper(nikos, { button: 'set:done' });
   expect(transport.sent.at(-1)?.message).toMatchObject({
     text: lines.choicesSaved(['family moments', 'reminders', 'share offers', 'voice notes']),
@@ -136,13 +137,13 @@ test('the v2 demo script: Nikos joins and chooses, a share offer, his voice stor
   await say(eleni, { button: `shr:yes:${offer.id}`, messageId: offer.messageId, ephemeral: true });
   expect(transport.edits.at(-1)).toEqual({ chatId: '-100', messageId: offer.messageId, change: { text: lines.shareSent(['Nikos']), onlyFor: eleni.id } });
 
-  // beat 4: the photo and the invitation voice note in private, his voice story, and the story in the group
+  // beat 4: the photo and the memory voice note in private, his voice story, and the story in the group
   const inPrivate = transport.sent.filter(({ chatId }) => chatId === nikos.id).slice(-2).map(({ message }) => message);
-  expect(inPrivate).toEqual([{ photo: { id: 'photo-maria' } }, expect.objectContaining({ voice: { wav }, text: lines.invitation(moment) })]);
+  expect(inPrivate).toEqual([{ photo: { id: 'photo-maria' }, text: lines.sharedBy(moment) }, expect.objectContaining({ voice: { wav }, text: lines.remindYou })]);
   vi.mocked(model.transcribe).mockResolvedValueOnce(nikosStory);
   await whisper(nikos, { voice: { id: 'voice-nikos', mimeType: 'audio/ogg' } });
   expect(transport.sent.at(-1)?.message).toMatchObject({ text: lines.thanks, voice: { wav } });
-  await whisper(nikos, { button: `inv:share:${moment.id}` });
+  await whisper(nikos, { button: `inv:share:${member?.invitation?.id}` });
   const story = toGroup().at(-2);
   expect(story?.message).toMatchObject({ text: lines.storyAdded('Nikos', 'Eleni', nikosStory), mention: eleni });
   expect(transport.reactions).toContainEqual({ chatId: '-100', messageId: story?.messageId, emoji: '\u2764', big: true });
@@ -199,7 +200,7 @@ test('after stop, settings and a choice tap start Nikos again, and the next shar
   const [offer] = family.offers;
   expect(transport.sent.at(-1)?.message).toMatchObject({ text: lines.shareOffer(['Nikos']), onlyFor: eleni.id });
   await say(eleni, { button: `shr:yes:${offer.id}`, messageId: offer.messageId, ephemeral: true });
-  expect(transport.sent.filter(({ chatId }) => chatId === nikos.id).at(-1)?.message.text).toBe(lines.invitation(family.moments[0]));
+  expect(transport.sent.filter(({ chatId }) => chatId === nikos.id).at(-1)?.message.text).toBe(lines.remindYou);
 });
 
 test('v1 cues still work: then and now, a question, and the 18:00 post one week later', async () => {
@@ -211,8 +212,9 @@ test('v1 cues still work: then and now, a question, and the 18:00 post one week 
   const [first] = family.moments;
   expect(first).toMatchObject({ by: eleni, text: maria, title: "Maria's first day at school", photo: { id: 'photo-maria' } });
 
-  await say(eleni, { text: '/fastforward 3' });
-  expect(transport.sent.at(-1)?.message.text).toBe(lines.fastforwarded('28 September 2026 at 12:00'));
+  // two moments of one week are no echo, so then and now needs a week between them
+  await say(eleni, { text: '/fastforward 7' });
+  expect(transport.sent.at(-1)?.message.text).toBe(lines.fastforwarded('2 October 2026 at 12:00'));
   await tick();
 
   await say(nikos, { text: nikosFirstDay, photo: { id: 'photo-1958' } });
@@ -231,11 +233,6 @@ test('v1 cues still work: then and now, a question, and the 18:00 post one week 
     text: lines.askAnswer("Maria's first day at school", '25 September 2026', []),
     replyTo: '4',
   });
-
-  await say(eleni, { text: '/fastforward 4' });
-  const beforeSlot = transport.sent.length;
-  await tick();
-  expect(transport.sent).toHaveLength(beforeSlot);
 
   vi.setSystemTime(Date.now() + 6 * HOUR + 60_000);
   await tick();
@@ -257,4 +254,92 @@ test('on cue: /fastforward 7 then /memory posts one week ago at once, before the
   await say(eleni, { text: '/memory' });
   const label = lines.labels['7'];
   expect(transport.sent.at(-1)?.message).toEqual({ photo: { id: 'photo-maria' }, text: lines.memoryCaption(label, family.moments[0]) });
+});
+
+test('the stage flow: two posts, /fastforward 1, a private memory for every started member, one-tap replies, and the same memory on each jump', async () => {
+  const { family, transport, say, whisper, tick } = setup();
+  for (const person of [sofia, eleni, alexandros]) await whisper(person, { text: '/start -100' });
+  await whisper(sofia, { button: 'set:voice', messageId: transport.sent[0].messageId });
+  const toGroup = () => transport.sent.filter(({ chatId, message }) => chatId === '-100' && !message.onlyFor).map(({ message }) => message);
+  const toMember = (person: Person) => transport.sent.filter(({ chatId }) => chatId === person.id);
+  const invitationOf = (person: Person) => family.members.find((member) => member.id === person.id)?.invitation;
+
+  // step 1: Eleni, then Alexandros, post a photo with a caption, and Alexandros adds a voice note before the ❤
+  await say(eleni, { text: 'Sunday at the beach with the kids', photo: { id: 'photo-beach' } });
+  vi.setSystemTime(Date.now() + 2000);
+  await tick();
+  vi.mocked(model.transcribe).mockResolvedValueOnce('We built it all afternoon.');
+  await say(alexandros, { text: 'The sandcastle we built', photo: { id: 'photo-castle' } });
+  await say(alexandros, { voice: { id: 'voice-castle', mimeType: 'audio/ogg' } });
+  vi.setSystemTime(Date.now() + 2000);
+  await tick();
+  const [beach, castle] = family.moments;
+  expect(family.moments).toHaveLength(2);
+  expect(castle).toMatchObject({ by: alexandros, photo: { id: 'photo-castle' }, voice: { id: 'voice-castle', mimeType: 'audio/ogg' } });
+  expect(transport.reactions.map(({ messageId, emoji }) => [messageId, emoji])).toEqual([
+    [beach.messageIds[0], '\u2764'],
+    [castle.messageIds[0], '\u2764'],
+  ]);
+
+  // steps 2 and 3: only Eleni sees the jump, and every started member gets the album, then one message with the three buttons
+  await say(eleni, { text: '/fastforward 1', ephemeral: true });
+  expect(transport.sent.at(-1)?.message).toMatchObject({ onlyFor: eleni.id });
+  await tick();
+  const album = {
+    album: [{ photo: { id: 'photo-beach' } }, { photo: { id: 'photo-castle' } }],
+    text: lines.weekMemory('Eleni and Alexandros shared a day at the beach.'),
+  };
+  for (const person of [sofia, eleni, alexandros]) {
+    const id = invitationOf(person)?.id;
+    const buttons = [
+      { label: 'Tell me more', data: `inv:more:${id}` },
+      { label: 'Reply to the family', data: `inv:reply:${id}` },
+      { label: 'Later, please', data: `inv:later:${id}` },
+    ];
+    expect(toMember(person).slice(-2).map(({ message }) => message)).toEqual([album, expect.objectContaining({ text: lines.remindYou, buttons })]);
+  }
+  expect(toMember(sofia).at(-1)?.message.voice).toEqual({ wav });
+  expect(toGroup()).toEqual([]);
+
+  // step 4: the buttons of the same message change at once to the three replies
+  const id = invitationOf(sofia)?.id;
+  const memory = toMember(sofia).at(-1)?.messageId ?? '';
+  await whisper(sofia, { button: `inv:reply:${id}`, messageId: memory });
+  expect(transport.edits.at(-1)).toEqual({
+    chatId: sofia.id,
+    messageId: memory,
+    change: { buttons: ['❤️ Sending my love', '😊 That made me smile', '💛 I miss you all'].map((label, index) => ({ label, data: `inv:say${index}:${id}` })) },
+  });
+
+  // step 5: the reply goes to the group as a reply to Eleni's post, and the buttons collapse
+  await whisper(sofia, { button: `inv:say2:${id}`, messageId: memory });
+  expect(transport.edits.at(-1)).toEqual({ chatId: sofia.id, messageId: memory, change: { buttons: [{ label: '✅ Sent to the family', data: `inv:done:${id}` }] } });
+  expect(toGroup()).toEqual([{ text: 'Sofia: «I miss you all 💛»', replyTo: beach.messageIds[0] }]);
+
+  // steps 6 and 7: one voice note asks about a call, and "Yes, ask Eleni" asks Eleni in the group with a mention
+  const question = toMember(sofia).at(-1);
+  expect(question?.message).toEqual({
+    text: 'Shall I ask Eleni to call you?',
+    buttons: [
+      { label: 'Yes, ask Eleni', data: `inv:call:${id}` },
+      { label: 'No, thanks', data: `inv:nocall:${id}` },
+    ],
+    voice: { wav },
+  });
+  await whisper(sofia, { button: `inv:call:${id}`, messageId: question?.messageId });
+  expect(transport.edits.at(-1)?.change).toEqual({ buttons: [{ label: '✅ Asked Eleni to call you', data: `inv:done:${id}` }] });
+  expect(toGroup().at(-1)).toEqual({ text: 'Eleni, Sofia would love a call from you 💛', mention: eleni });
+
+  // two more jumps with no new post: every member gets the memory again, and no echo and no group memory posts
+  const posted = toGroup().length;
+  for (let jump = 2; jump <= 3; jump++) {
+    const before = transport.sent.length;
+    await say(eleni, { text: '/fastforward 1', ephemeral: true });
+    await tick();
+    const sent = transport.sent.slice(before).filter(({ chatId }) => chatId !== '-100');
+    for (const person of [sofia, eleni, alexandros]) {
+      expect(sent.filter(({ chatId }) => chatId === person.id).map(({ message }) => message.album ?? message.text)).toEqual([album.album, lines.remindYou]);
+    }
+  }
+  expect(toGroup()).toHaveLength(posted);
 });

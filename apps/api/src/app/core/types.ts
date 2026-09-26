@@ -81,24 +81,24 @@ export type Moment = {
   title: string;
   tags?: string[]; // section 4.16: up to 5 names, pets, places, events, or activities, such as ["Lucy", "dog"]
   description?: string; // Anchor's own sentence about the picture, such as "The photo shows a girl at a school gate."; only the voice says it
-  invitationVoice?: Media; // the TTS clip of spokenInvitation(moment)
   stories: Story[];
   lookbacks: string[]; // '7', '30', '365', 'anniversary-2027'
   memoryPostIds: string[];
-  returns: Record<string, { count: number; due: number }>; // private returns per member id
+  returns: Record<string, { count: number }>; // private returns per member id
   echo?: string; // the id of the older moment that this moment echoes
   echoPostIds?: string[]; // the messages of the then-and-now post
 };
 
+// a private memory of 1 to 5 moments; the name stays from the single-moment invitation of v1
 export type Invitation = {
-  momentId: string;
-  day: number; // the demo-clock day index of the invitation
-  messageIds: string[]; // the private messages of Anchor for this invitation
+  id: string; // 8 characters, in the button data
+  momentId: string; // the lead moment: the target of a story and of a family reply
+  momentIds: string[]; // every moment of the memory, oldest first
   story?: { text: string; voice?: Media };
   shareAsked: boolean;
   helped: boolean; // the gentle help went out once
-  sentAt: number; // demo-clock ms of the delivery
-  replied: boolean; // any reply, a question, or "What is this?" came
+  said?: boolean; // the one-tap reply went to the group
+  askedCall?: boolean; // the call request went to the group
 };
 
 export type Choices = { moments: boolean; reminders: boolean; shares: boolean; voice: boolean; call: boolean }; // v2, section 4.11
@@ -113,6 +113,7 @@ export type Member = Person & {
   lastCallDay?: number; // v2: the demo-clock day index of the last daily call
   lastInvitationDay?: number;
   invitation?: Invitation;
+  hidden?: string[]; // the moment ids that the member asked never to see again; the family still sees them
 };
 
 export type Offer = { // v2, sections 4.12 and 4.13
