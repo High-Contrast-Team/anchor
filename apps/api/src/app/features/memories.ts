@@ -38,7 +38,7 @@ function firstDue(moments: Moment[], now: number) {
     .sort((a, b) => priority(a.moment, b.moment))[0];
 }
 
-export const eventTime = (moment: Moment) => (moment.eventDate ? new Date(`${moment.eventDate}T12:00`).getTime() : moment.savedAt);
+const eventTime = (moment: Moment) => (moment.eventDate ? new Date(`${moment.eventDate}T12:00`).getTime() : moment.savedAt);
 
 const hasTag = (moment: Moment, tag: string) => (moment.tags ?? []).some((item) => item.toLowerCase() === tag.toLowerCase());
 
