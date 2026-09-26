@@ -9,10 +9,10 @@ import { dayIndex } from '../core/clock';
 import { FakeTransport } from '../core/fake-transport';
 import { lines } from '../core/lines';
 import { openStore } from '../core/store';
-import { Blocked, type Choices, type Context, type Family, type Incoming, type Invitation, type Moment, type Outgoing } from '../core/types';
+import { Blocked, type Choices, type Context, type Family, type Incoming, type Invitation, type Moment } from '../core/types';
 import { ask, speak } from '../model/model';
 import { asksAnchor } from './capture/filter';
-import { invitations, nextSlot, qualifies } from './invitations';
+import { invitations, sendMe, sendNow } from './invitations';
 
 const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
@@ -32,15 +32,18 @@ let sequence: number;
 
 const at = (day: number, hour: number, minute = 0) => new Date(2026, 8, day, hour, minute).getTime();
 const wav = Buffer.from('RIFF clip');
-const invitationText = 'Sofia shared: «Maria on her first day at school»\nWhat does it remind you of?';
-const inviteButtons = (id: string) => [
-  { label: lines.buttons.whatIsThis, data: `inv:what:${id}` },
+const STYLE = 'warm, calm and slow, like a kind family friend talking to a grandparent';
+const sofiaSaid = 'Sofia shared: «Maria on her first day at school»';
+const memoryButtons = (id: string) => [
+  { label: lines.buttons.tellMeMore, data: `inv:more:${id}` },
+  { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
   { label: lines.buttons.notNow, data: `inv:later:${id}` },
-  { label: lines.buttons.dontBringBack, data: `inv:never:${id}` },
 ];
+const replyButtons = (id: string) => lines.familyReplies.map(([emoji, words], index) => ({ label: `${emoji} ${words}`, data: `inv:say${index}:${id}` }));
+const doneButton = (id: string, label: string) => [{ label, data: `inv:done:${id}` }];
 const shareButtons = (id: string) => [
   { label: lines.buttons.share, data: `inv:share:${id}` },
-  { label: lines.buttons.dontShare, data: `inv:keep:${id}` },
+  { label: lines.buttons.noThanks, data: `inv:keep:${id}` },
 ];
 
 const build = (overrides: Partial<Moment> = {}): Moment => ({
@@ -67,19 +70,11 @@ const add = (overrides: Partial<Moment> = {}) => {
   return moment;
 };
 
+const eleni = { id: '2', name: 'Eleni' };
 const nikos = () => family.members[0];
 
 const invite = (moment: Moment, overrides: Partial<Invitation> = {}) => {
-  nikos().invitation = {
-    momentId: moment.id,
-    day: dayIndex(now),
-    messageIds: [],
-    shareAsked: false,
-    helped: false,
-    sentAt: now,
-    replied: false,
-    ...overrides,
-  };
+  nikos().invitation = { id: 'abcd1234', momentId: moment.id, momentIds: [moment.id], shareAsked: false, helped: false, ...overrides };
   return nikos().invitation;
 };
 
@@ -110,7 +105,11 @@ const tickAt = (time: number) => {
   return invitations.tick(family, { from: time - 60_000, to: time }, ctx);
 };
 
+// a tap on a button of the message with this id
+const tap = (data: string, messageId: string) => receive(fromNikos({ button: data, messageId }));
+
 const messages = () => transport.sent.map(({ chatId, message }) => [chatId, message]);
+const edits = () => transport.edits.map(({ chatId, messageId, change }) => [chatId, messageId, change]);
 const saved = () => openStore(file).family('-100');
 const silenceWarnings = () => vi.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
 
@@ -129,40 +128,23 @@ beforeEach(() => {
   member.choices.moments = true;
 });
 
-test('qualifies takes a moment of another sender that is not sensitive, 3 hours old, due, and under 7 returns', () => {
-  const slot = at(25, 11);
-  const moment = build();
-  expect(qualifies(moment, '7', slot)).toBe(true);
-  expect(qualifies(moment, '1', slot)).toBe(false);
-  expect(qualifies(build({ sensitive: true }), '7', slot)).toBe(false);
-  expect(qualifies(build({ savedAt: at(25, 9) }), '7', slot)).toBe(false);
-  expect(qualifies(build({ returns: { '7': { count: 1, due: slot + 1 } } }), '7', slot)).toBe(false);
-  expect(qualifies(build({ returns: { '7': { count: 6, due: slot } } }), '7', slot)).toBe(true);
-  expect(qualifies(build({ returns: { '7': { count: 7, due: 0 } } }), '7', slot)).toBe(false);
-});
-
-test('nextSlot is the first local 11:00 after now', () => {
-  expect(nextSlot(at(25, 10))).toBe(at(25, 11));
-  expect(nextSlot(at(25, 11))).toBe(at(26, 11));
-  expect(nextSlot(at(25, 15))).toBe(at(26, 11));
-});
-
 test('a group event is left to the members feature', async () => {
   expect(await receive(inGroup({ text: '/memory' }))).toBe(false);
 });
 
-test('the 11:00 tick sends the photo, then the invitation voice with both buttons, and schedules the next return', async () => {
+test('the 11:00 tick sends the photo with its sharer, then the question with the three buttons, once a day', async () => {
   add();
   await tickAt(at(25, 11));
 
-  expect(speak).toHaveBeenCalledWith(invitationText, 'warm, calm and slow, like a kind family friend talking to a grandparent');
+  const { id } = nikos().invitation ?? { id: '' };
+  expect(id).toMatch(/^[0-9a-f]{8}$/);
   expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' } }],
-    ['7', { voice: { wav }, text: invitationText, buttons: inviteButtons('m1') }],
+    ['7', { photo: { id: 'photo-57' }, text: sofiaSaid }],
+    ['7', { text: lines.remindYou, buttons: memoryButtons(id) }],
   ]);
+  expect(speak).not.toHaveBeenCalled();
   const record = saved();
-  expect(record?.moments[0].invitationVoice).toEqual({ id: 'voice-sent-2', mimeType: 'audio/ogg' });
-  expect(record?.moments[0].returns).toEqual({ '7': { count: 1, due: at(26, 11) } });
+  expect(record?.moments[0].returns).toEqual({ '7': { count: 1 } });
   expect(record?.members[0]).toEqual({
     id: '7',
     name: 'Nikos',
@@ -170,15 +152,7 @@ test('the 11:00 tick sends the photo, then the invitation voice with both button
     choices: DEFAULT_CHOICES,
     lastInvitationDay: dayIndex(at(25, 11)),
     seenAt: at(25, 8),
-    invitation: {
-      momentId: 'm1',
-      day: dayIndex(at(25, 11)),
-      messageIds: ['sent-1', 'sent-2'],
-      shareAsked: false,
-      helped: false,
-      sentAt: at(25, 11),
-      replied: false,
-    },
+    invitation: { id, momentId: 'm1', momentIds: ['m1'], shareAsked: false, helped: false },
   });
 
   const save = vi.spyOn(ctx.store, 'save');
@@ -188,167 +162,259 @@ test('the 11:00 tick sends the photo, then the invitation voice with both button
   expect(save).not.toHaveBeenCalled();
 });
 
-test("the invitation voice says the description of the photo after the sharer's words, and the caption stays the same", async () => {
+test('with the voice choice, the voice says the sharer, the description of the photo, and the question', async () => {
+  nikos().choices.voice = true;
   add({ description: 'The photo shows a girl with a red backpack at a school gate.' });
   await tickAt(at(25, 11));
 
-  expect(speak).toHaveBeenCalledWith(
-    'Sofia shared: «Maria on her first day at school»\nThe photo shows a girl with a red backpack at a school gate.\nWhat does it remind you of?',
-    'warm, calm and slow, like a kind family friend talking to a grandparent',
-  );
+  expect(speak).toHaveBeenCalledWith(`${sofiaSaid}\nThe photo shows a girl with a red backpack at a school gate.\n${lines.remindYou}`, STYLE);
   expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' } }],
-    ['7', { voice: { wav }, text: invitationText, buttons: inviteButtons('m1') }],
+    ['7', { photo: { id: 'photo-57' }, text: sofiaSaid }],
+    ['7', { text: lines.remindYou, buttons: memoryButtons(nikos().invitation?.id ?? ''), voice: { wav } }],
   ]);
 });
 
-test('an invitation of a wordless photo speaks and captions the photo by its title, never as a quote', async () => {
+test('a failed voice clip sends the question as text with the buttons', async () => {
+  silenceWarnings();
+  nikos().choices.voice = true;
+  vi.mocked(speak).mockRejectedValue(new Error('no TTS model left'));
+  add();
+  await tickAt(at(25, 11));
+  expect(transport.sent[1].message).toEqual({ text: lines.remindYou, buttons: memoryButtons(nikos().invitation?.id ?? '') });
+});
+
+test('a wordless photo is captioned by its title, never as a quote', async () => {
   add({ text: "Maria's first day at school", wordless: true });
   await tickAt(at(25, 11));
-
-  const text = "Sofia shared a photo: Maria's first day at school\nWhat does it remind you of?";
-  expect(speak).toHaveBeenCalledWith(text, 'warm, calm and slow, like a kind family friend talking to a grandparent');
-  expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' } }],
-    ['7', { voice: { wav }, text, buttons: inviteButtons('m1') }],
-  ]);
+  expect(transport.sent[0].message).toEqual({ photo: { id: 'photo-57' }, text: "Sofia shared a photo: Maria's first day at school" });
 });
 
-test('the reply prompt of a wordless moment does not present the title as her words', async () => {
-  invite(add({ text: "Maria's first day at school", wordless: true }));
-  vi.mocked(ask).mockResolvedValue({ transcript: '', kind: 'story' });
-  await receive(fromNikos({ text: 'She would not let go of my hand' }));
-
-  const [prompt] = vi.mocked(ask).mock.calls[0];
-  expect(prompt).toContain("Sofia shared a photo: Maria's first day at school");
-  expect(prompt).not.toContain('«Maria');
-});
-
-test('a moment with a video goes out as the video, and a moment with no picture as the voice alone', async () => {
+test('a moment with a video goes out as the video, and a moment with no picture as one message', async () => {
   add({ video: { id: 'video-57' } });
   await tickAt(at(25, 11));
-  expect(transport.sent[0].message).toEqual({ video: { id: 'video-57' } });
+  expect(transport.sent[0].message).toEqual({ video: { id: 'video-57' }, text: sofiaSaid });
 
   family.moments = [build({ photo: undefined })];
   await tickAt(at(26, 11));
-  expect(transport.sent.slice(2).map(({ message }) => message.text)).toEqual([invitationText]);
+  expect(transport.sent.slice(2).map(({ message }) => message.text)).toEqual([`${sofiaSaid}\n${lines.remindYou}`]);
 });
 
-test('the tick skips an own, a sensitive, a young, and a not yet due moment, and picks by priority among the rest', async () => {
-  ctx.store.joinMember(family, { id: '8', name: 'Eleni' });
-  add({ id: 'own', by: { id: '7', name: 'Nikos' }, salience: 5 });
-  add({ id: 'sensitive', sensitive: true, salience: 5 });
-  add({ id: 'young', savedAt: at(25, 8, 1), salience: 5 });
-  add({ id: 'later', returns: { '7': { count: 1, due: at(25, 11, 1) } }, salience: 5 });
-  add({ id: 'low', savedAt: at(20, 8), salience: 2 });
-  add({ id: 'high', salience: 4 });
+test('the memory of the week holds up to 5 newest moments, the own ones too, and the photos form an album oldest first', async () => {
+  vi.mocked(ask).mockResolvedValue({ caption: 'Sofia and Eleni shared school and lunch.' });
+  add({ id: 'old', savedAt: at(17, 12), photo: { id: 'photo-old' } });
+  add({ id: 'quiet', sensitive: true, savedAt: at(24, 12) });
+  add({ id: 'after', savedAt: at(25, 11, 1) });
+  add({ id: 'text', by: eleni, photo: undefined, text: 'Lunch at grandma’s on Sunday', savedAt: at(20, 12) });
+  add({ id: 'own', by: { id: '7', name: 'Nikos' }, photo: { id: 'photo-own' }, savedAt: at(21, 12) });
+  add({ id: 'a', savedAt: at(22, 12), photo: { id: 'photo-a' } });
+  add({ id: 'b', by: eleni, savedAt: at(23, 12), photo: { id: 'photo-b' } });
+  add({ id: 'c', savedAt: at(24, 12), photo: { id: 'photo-c' } });
+  add({ id: 'd', by: eleni, savedAt: at(25, 10), photo: { id: 'photo-d' } });
   await tickAt(at(25, 11));
 
-  expect(nikos().invitation?.momentId).toBe('high');
-  expect(transport.sent.map(({ chatId }) => chatId)).toEqual(['7', '7']);
+  const [prompt] = vi.mocked(ask).mock.calls[0];
+  expect(prompt).toContain('with the label "This week in the family": 5 family moments.');
+  const caption = lines.weekMemory('Sofia and Eleni shared school and lunch.');
+  const { id } = nikos().invitation ?? { id: '' };
+  expect(messages()).toEqual([
+    ['7', { album: ['photo-own', 'photo-a', 'photo-b', 'photo-c', 'photo-d'].map((photo) => ({ photo: { id: photo } })), text: caption }],
+    ['7', { text: lines.remindYou, buttons: memoryButtons(id) }],
+  ]);
+  // Sofia and Eleni tie with 2 moments each, and Sofia shared first, so her newest moment leads
+  expect(nikos().invitation).toMatchObject({ momentId: 'c', momentIds: ['own', 'a', 'b', 'c', 'd'] });
+  expect(nikos().seenAt).toBe(at(25, 10));
 });
 
-test('each return reuses the invitation voice and doubles the gap, and a moment comes back at most 7 times', async () => {
-  const moment = add();
-  await tickAt(at(25, 11));
-  await tickAt(at(26, 11));
-  expect(speak).toHaveBeenCalledTimes(1);
-  const voice = { id: 'voice-sent-2', mimeType: 'audio/ogg' };
-  expect(transport.sent[3].message).toEqual({ voice, text: invitationText, buttons: inviteButtons('m1') });
-  expect(moment.returns['7']).toEqual({ count: 2, due: at(28, 11) });
-
-  const dues: number[] = [];
-  for (let i = 0; i < 5; i++) {
-    await tickAt(moment.returns['7'].due);
-    dues.push(moment.returns['7'].due);
-  }
-  expect(moment.returns['7'].count).toBe(7);
-  expect(dues.slice(0, 4)).toEqual([at(32, 11), at(40, 11), at(56, 11), at(88, 11)]);
-  const sent = transport.sent.length;
-  await tickAt(new Date(2027, 8, 25, 11).getTime());
-  expect(transport.sent).toHaveLength(sent);
-});
-
-test('an invitation that is still open at the next 11:00 slot closes without a message', async () => {
-  invite(add({ returns: { '7': { count: 1, due: at(27, 11) } } }));
-  await tickAt(at(26, 11));
-  expect(saved()?.members[0]).toEqual({ id: '7', name: 'Nikos', started: true, choices: DEFAULT_CHOICES, lastInvitationDay: dayIndex(at(26, 11)) });
-  expect(transport.sent).toEqual([]);
-});
-
-test('a window that spans both the 3-hour silent mark and the next 11:00 slot lets the slot win: the old invitation closes silently and the next one goes out', async () => {
+test('a week with one photo and a text moment sends the photo with the caption, and the voice says the caption before the question', async () => {
+  nikos().choices.voice = true;
+  add({ id: 'text', by: eleni, photo: undefined, text: 'Lunch at grandma’s on Sunday', savedAt: at(24, 12) });
   add();
   await tickAt(at(25, 11));
-  add({ id: 'm2', by: { id: '2', name: 'Eleni' }, photo: { id: 'photo-99' }, text: 'Sunday lunch with all the cousins', savedAt: at(20, 8), salience: 5 });
-  const sentBefore = transport.sent.length;
 
-  now = at(26, 11);
-  await invitations.tick(family, { from: at(25, 10), to: now }, ctx);
-
-  expect(messages().slice(sentBefore)).toEqual([
-    ['7', { photo: { id: 'photo-99' } }],
-    ['7', { voice: { wav }, text: 'Eleni shared: «Sunday lunch with all the cousins»\nWhat does it remind you of?', buttons: inviteButtons('m2') }],
+  const caption = lines.weekMemory(lines.weekShared(family.moments));
+  expect(caption).toBe('This week in the family 💛\nEleni and Sofia shared 2 moments.');
+  expect(speak).toHaveBeenCalledWith(`${caption}\n${lines.remindYou}`, STYLE);
+  expect(messages()).toEqual([
+    ['7', { photo: { id: 'photo-57' }, text: caption }],
+    ['7', { text: lines.remindYou, buttons: memoryButtons(nikos().invitation?.id ?? ''), voice: { wav } }],
   ]);
+});
+
+test('a week with no moment takes the 5 newest, and an empty record sends nothing', async () => {
+  await tickAt(at(25, 11));
+  expect(transport.sent).toEqual([]);
+  expect(saved()?.members[0].lastInvitationDay).toBe(dayIndex(at(25, 11)));
+
+  add({ id: 'older', savedAt: at(2, 12), photo: undefined });
+  add({ id: 'old', savedAt: at(10, 12) });
+  await tickAt(at(26, 11));
+  expect(nikos().invitation?.momentIds).toEqual(['older', 'old']);
+});
+
+test('every new day sends the memory again, with a new id, and the open one closes without a message', async () => {
+  const moment = add();
+  await tickAt(at(25, 11));
+  const first = nikos().invitation?.id;
+  await tickAt(at(26, 11));
+  await tickAt(at(27, 11));
+  expect(transport.sent).toHaveLength(6);
+  expect(nikos().invitation?.id).not.toBe(first);
+  expect(moment.returns['7']).toEqual({ count: 3 });
+});
+
+test('every started member with family moments gets the memory, and one caption call serves the same week', async () => {
+  const eleniMember = ctx.store.joinMember(family, eleni);
+  eleniMember.started = true;
+  eleniMember.choices.moments = true;
+  ctx.store.joinMember(family, { id: '9', name: 'Maria' });
+  add();
+  add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, savedAt: at(25, 7) });
+  await tickAt(at(25, 11));
+
+  expect(ask).toHaveBeenCalledTimes(1);
+  expect(transport.sent.map(({ chatId }) => chatId).sort()).toEqual(['2', '2', '7', '7']);
   expect(nikos().invitation?.momentId).toBe('m2');
-  expect(transport.sent.slice(sentBefore).some(({ message }) => message.text?.includes('No rush'))).toBe(false);
+  expect(eleniMember.invitation?.momentId).toBe('m1');
 });
 
-test('when that same wide window leaves no moment to qualify, the tick closes the old invitation silently and sends nothing', async () => {
-  invite(add({ returns: { '7': { count: 7, due: at(20, 11) } } }), { sentAt: at(25, 11) });
-  nikos().lastInvitationDay = dayIndex(at(25, 11));
-
-  now = at(26, 11);
-  await invitations.tick(family, { from: at(25, 10), to: now }, ctx);
-
-  expect(transport.sent).toEqual([]);
-  expect(nikos().invitation).toBeUndefined();
-  expect(saved()?.members[0]).toEqual({ id: '7', name: 'Nikos', started: true, choices: DEFAULT_CHOICES, lastInvitationDay: dayIndex(at(26, 11)) });
-});
-
-test('a failed voice clip sends the invitation as text with both buttons', async () => {
-  silenceWarnings();
-  vi.mocked(speak).mockRejectedValue(new Error('no TTS model left'));
-  const moment = add();
-  await tickAt(at(25, 11));
-  expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' } }],
-    ['7', { text: invitationText, buttons: inviteButtons('m1') }],
-  ]);
-  expect(moment.invitationVoice).toBeUndefined();
-  expect(nikos().invitation?.messageIds).toEqual(['sent-1', 'sent-2']);
-});
-
-test('a failed voice send sends the invitation as text, and the invitation stays open', async () => {
-  silenceWarnings();
-  const send = transport.send.bind(transport);
-  vi.spyOn(transport, 'send').mockImplementation(async (chatId: string, message: Outgoing) => {
-    if (message.voice) throw new Error('ffmpeg failed');
-    return send(chatId, message);
-  });
-  add();
-  await tickAt(at(25, 11));
-  expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' } }],
-    ['7', { text: invitationText, buttons: inviteButtons('m1') }],
-  ]);
-  expect(nikos().invitation?.momentId).toBe('m1');
-});
-
-test('a member who blocked Anchor stops getting invitations, and the return still counts', async () => {
+test('a member who blocked Anchor stops getting memories, and the return still counts', async () => {
   vi.spyOn(transport, 'send').mockRejectedValue(new Blocked());
   add();
   await tickAt(at(25, 11));
   const record = saved();
-  expect(record?.members[0]).toEqual({
-    id: '7',
-    name: 'Nikos',
-    started: false,
-    choices: DEFAULT_CHOICES,
-    lastInvitationDay: dayIndex(at(25, 11)),
-    seenAt: at(25, 8),
-  });
+  expect(record?.members[0]).toMatchObject({ started: false, lastInvitationDay: dayIndex(at(25, 11)) });
   expect(record?.moments[0].returns['7'].count).toBe(1);
-  expect(speak).not.toHaveBeenCalled();
+});
+
+test('"Reply to the family" swaps the buttons in place, a reply goes to the group, and Anchor asks to call the top sharer', async () => {
+  const moment = add({ by: eleni });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  const memory = transport.sent[1].messageId;
+
+  expect(await tap(`inv:reply:${id}`, memory)).toBe(true);
+  expect(edits()).toEqual([['7', memory, { buttons: replyButtons(id) }]]);
+
+  await tap(`inv:say2:${id}`, memory);
+  await tap(`inv:say2:${id}`, memory);
+  await tap(`inv:reply:${id}`, memory);
+  expect(edits().slice(1)).toEqual([['7', memory, { buttons: doneButton(id, lines.done.sent) }]]);
+  expect(messages().slice(2)).toEqual([
+    ['-100', { text: 'Nikos: «I miss you all 💛»', replyTo: moment.messageIds[0] }],
+    ['7', { text: lines.askCall('Eleni'), buttons: [{ label: 'Yes, ask Eleni', data: `inv:call:${id}` }, { label: 'No, thanks', data: `inv:nocall:${id}` }] }],
+  ]);
+
+  const question = transport.sent[3].messageId;
+  await tap(`inv:call:${id}`, question);
+  await tap(`inv:call:${id}`, question);
+  await tap(`inv:done:${id}`, question);
+  expect(edits().slice(2)).toEqual([['7', question, { buttons: doneButton(id, lines.done.askedCall('Eleni')) }]]);
+  expect(messages().slice(4)).toEqual([['-100', { text: lines.wouldLoveCall('Nikos', 'Eleni'), mention: eleni }]]);
+  expect(saved()?.members[0].invitation).toMatchObject({ said: true, askedCall: true });
+});
+
+test('"No, thanks" on the call question removes its buttons, and a memory of only own moments asks no call', async () => {
+  add({ by: eleni });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  await tap(`inv:say0:${id}`, transport.sent[1].messageId);
+  await tap(`inv:nocall:${id}`, transport.sent[3].messageId);
+  expect(edits().at(-1)).toEqual(['7', transport.sent[3].messageId, { buttons: [] }]);
+  expect(messages().filter(([chatId]) => chatId === '-100')).toEqual([['-100', { text: 'Nikos: «Sending my love ❤️»', replyTo: '57' }]]);
+
+  family.moments = [build({ by: { id: '7', name: 'Nikos' } })];
+  await tickAt(at(26, 11));
+  const own = nikos().invitation?.id;
+  const sent = transport.sent.length;
+  await tap(`inv:say1:${own}`, transport.sent.at(-1)?.messageId ?? '');
+  expect(messages().slice(sent)).toEqual([['-100', { text: 'Nikos: «That made me smile 😊»', replyTo: '57' }]]);
+});
+
+test('"Later, please" collapses the buttons in place and keeps the memory open for a story', async () => {
+  add();
+  await tickAt(at(25, 11));
+  const invitation = nikos().invitation;
+  await tap(`inv:later:${invitation?.id}`, transport.sent[1].messageId);
+  expect(edits()).toEqual([['7', transport.sent[1].messageId, { buttons: doneButton(invitation?.id ?? '', lines.done.later) }]]);
+  expect(transport.sent).toHaveLength(2);
+  expect(nikos().invitation).toBe(invitation);
+});
+
+test('"Tell me more" names each moment, then plays the voice notes of the sharers with the next two buttons', async () => {
+  nikos().choices.voice = true;
+  add({ description: 'The photo shows a girl at a school gate.', voice: { id: 'voice-57' } });
+  add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, savedAt: at(24, 9), text: 'Sunday lunch' });
+  add({ id: 'm3', by: eleni, photo: undefined, savedAt: at(24, 10), text: 'The cousins sang', voice: { id: 'voice-99' } });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  vi.mocked(speak).mockClear();
+  const sent = transport.sent.length;
+
+  await tap(`inv:more:${id}`, transport.sent[1].messageId);
+  const [m1, m2, m3] = family.moments;
+  expect(speak).toHaveBeenCalledWith(lines.aboutMoments([m2, m3, m1], true), STYLE);
+  const next = [
+    { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
+    { label: lines.buttons.dontShowThese, data: `inv:hide:${id}` },
+  ];
+  expect(messages().slice(sent)).toEqual([
+    ['7', { text: lines.aboutMoments([m2, m3, m1]), voice: { wav } }],
+    ['7', { voice: { id: 'voice-99' } }],
+    ['7', { voice: { id: 'voice-57' }, buttons: next }],
+  ]);
+  expect(edits()).toEqual([]);
+});
+
+test('"Don\'t show me these again" hides the moments for this member only, and the family still sees them', async () => {
+  const moment = add();
+  add({ id: 'm2', by: eleni, photo: undefined, text: 'Sunday lunch', savedAt: at(24, 9) });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  await tap(`inv:more:${id}`, transport.sent[1].messageId);
+  const more = transport.sent[2].messageId;
+
+  await tap(`inv:hide:${id}`, more);
+  expect(edits()).toEqual([['7', more, { buttons: doneButton(id, lines.done.hidden) }]]);
+  expect(saved()?.members[0].hidden).toEqual(['m2', 'm1']);
+  expect(nikos().invitation).toBeUndefined();
+  expect(moment.sensitive).toBe(false);
+
+  add({ id: 'm3', savedAt: at(25, 12) });
+  await tickAt(at(26, 11));
+  expect(nikos().invitation?.momentIds).toEqual(['m3']);
+});
+
+test('a tap on an older or closed memory removes the buttons of that message and does nothing else', async () => {
+  add();
+  await tickAt(at(25, 11));
+  const { id: old } = nikos().invitation ?? { id: '' };
+  await tickAt(at(26, 11));
+  const sent = transport.sent.length;
+
+  expect(await tap(`inv:reply:${old}`, transport.sent[1].messageId)).toBe(true);
+  expect(await tap('inv:what:3f1c9a2e-5b7d-4e0a-9c1b-2d3e4f5a6b7c', 'old-voice')).toBe(true);
+  nikos().invitation = undefined;
+  expect(await tap(`inv:more:${old}`, 'closed')).toBe(true);
+  expect(edits()).toEqual([
+    ['7', transport.sent[1].messageId, { buttons: [] }],
+    ['7', 'old-voice', { buttons: [] }],
+    ['7', 'closed', { buttons: [] }],
+  ]);
+  expect(transport.sent).toHaveLength(sent);
+});
+
+test('"Send me a moment" and a share offer send a memory of one moment with the same buttons', async () => {
+  const moment = add();
+  await sendNow(family, nikos(), moment, ctx);
+  expect(messages()).toEqual([
+    ['7', { photo: { id: 'photo-57' }, text: sofiaSaid }],
+    ['7', { text: lines.remindYou, buttons: memoryButtons(nikos().invitation?.id ?? '') }],
+  ]);
+
+  add({ id: 'm2', savedAt: at(20, 8), photo: { id: 'photo-99' } });
+  nikos().hidden = ['m1'];
+  await sendMe(family, nikos(), ctx);
+  expect(nikos().invitation?.momentIds).toEqual(['m2']);
 });
 
 test('a story reply gets thanks with the share buttons once, and a second story reply joins the first', async () => {
@@ -374,16 +440,14 @@ test('a story reply gets thanks with the share buttons once, and a second story 
   });
   expect(options).toEqual({ media: [], fast: true });
   expect(saved()?.members[0].invitation).toEqual({
+    id: 'abcd1234',
     momentId: 'm1',
-    day: dayIndex(now),
-    messageIds: [],
+    momentIds: ['m1'],
     shareAsked: true,
     helped: false,
-    sentAt: now,
-    replied: true,
     story: { text: 'She would not let go of my hand\nThen she ran in' },
   });
-  expect(messages()).toEqual([['7', { text: lines.thanks, buttons: shareButtons('m1') }]]);
+  expect(messages()).toEqual([['7', { text: lines.thanks, buttons: shareButtons('abcd1234') }]]);
 });
 
 test('a voice reply sends the downloaded clip to the call, and the story keeps the first voice note and the transcripts', async () => {
@@ -407,15 +471,7 @@ test('a first unsure reply gets gentleHelp and the voice note of the moment, and
     ['7', { text: lines.gentleHelp('25 September 2026', "Maria's first day at school") }],
     ['7', { voice: { id: 'voice-57' } }],
   ]);
-  expect(saved()?.members[0].invitation).toEqual({
-    momentId: 'm1',
-    day: dayIndex(now),
-    messageIds: [],
-    shareAsked: false,
-    helped: true,
-    sentAt: now,
-    replied: true,
-  });
+  expect(saved()?.members[0].invitation).toEqual({ id: 'abcd1234', momentId: 'm1', momentIds: ['m1'], shareAsked: false, helped: true });
 
   await receive(fromNikos({ text: 'a park?' }));
   expect(transport.sent[2].message).toEqual({ text: lines.warmClose });
@@ -439,36 +495,6 @@ test('a longer reply that ends with "?" still goes to the model', async () => {
   await receive(fromNikos({ text: "It was her first day, wasn't it?" }));
   expect(ask).toHaveBeenCalledTimes(1);
   expect(transport.sent[0].message).toMatchObject({ text: lines.thanks });
-});
-
-test('an invitation with no reply for 3 hours gets gentleHelp and the voice note of the moment once', async () => {
-  add({ voice: { id: 'voice-57' } });
-  await tickAt(at(25, 11));
-  const save = vi.spyOn(ctx.store, 'save');
-  await tickAt(at(25, 13, 59));
-  expect(transport.sent).toHaveLength(2);
-  expect(save).not.toHaveBeenCalled();
-
-  await tickAt(at(25, 14));
-  expect(messages().slice(2)).toEqual([
-    ['7', { text: lines.gentleHelp('25 September 2026', "Maria's first day at school") }],
-    ['7', { voice: { id: 'voice-57' } }],
-  ]);
-  expect(saved()?.members[0].invitation).toMatchObject({ momentId: 'm1', helped: true, replied: false });
-
-  save.mockClear();
-  await tickAt(at(25, 18));
-  expect(transport.sent).toHaveLength(4);
-  expect(save).not.toHaveBeenCalled();
-});
-
-test('a member who turned family moments off gets no gentleHelp 3 hours later', async () => {
-  add();
-  await tickAt(at(25, 11));
-  nikos().choices.moments = false;
-  await tickAt(at(25, 14));
-  expect(transport.sent).toHaveLength(2);
-  expect(nikos().invitation?.helped).toBe(false);
 });
 
 test('a fixed phrase while an invitation is open goes to intents, and the invitation stays open', async () => {
@@ -509,44 +535,6 @@ test('a story that starts like a request stays a story', () => {
   }
 });
 
-test('an invitation with no sentAt fails safe and never gets gentleHelp', async () => {
-  const moment = add({ voice: { id: 'voice-57' } });
-  invite(moment, { sentAt: undefined });
-
-  await tickAt(at(25, 20));
-
-  expect(transport.sent).toEqual([]);
-  expect(nikos().invitation).toMatchObject({ helped: false });
-});
-
-test('after any reply, a tick past 3 hours sends no gentleHelp', async () => {
-  const moment = add();
-  vi.mocked(ask).mockResolvedValue({ transcript: '', kind: 'story' });
-  invite(moment);
-  await receive(fromNikos({ text: 'She would not let go of my hand' }));
-  await tickAt(at(25, 16));
-  expect(transport.sent.map(({ message }) => message.text)).toEqual([lines.thanks]);
-});
-
-test('a silent invitation whose moment is gone or kept quiet closes at 3 hours without a message', async () => {
-  const moment = add();
-  invite(moment);
-  family.moments.length = 0;
-  ctx.store.save();
-  await tickAt(at(25, 15));
-  expect(nikos().invitation).toBeUndefined();
-  expect(saved()?.members[0]).toEqual({ id: '7', name: 'Nikos', started: true, choices: DEFAULT_CHOICES });
-
-  family.moments.push(moment);
-  moment.sensitive = true;
-  invite(moment, { sentAt: at(25, 12) });
-  ctx.store.save();
-  await tickAt(at(25, 16));
-  expect(nikos().invitation).toBeUndefined();
-  expect(saved()?.members[0]).toEqual({ id: '7', name: 'Nikos', started: true, choices: DEFAULT_CHOICES });
-  expect(transport.sent).toEqual([]);
-});
-
 test('a story reply after a keep-quiet turns the moment sensitive sends no thanks and returns false', async () => {
   add();
   await tickAt(at(25, 11));
@@ -564,7 +552,7 @@ test('"Yes, share it" for a moment that turned sensitive while the story waited 
   invite(moment, { story: { text: 'She would not let go of my hand' }, shareAsked: true });
   moment.sensitive = true;
 
-  expect(await receive(fromNikos({ button: 'inv:share:m1' }))).toBe(false);
+  expect(await receive(fromNikos({ button: 'inv:share:abcd1234' }))).toBe(false);
   expect(transport.sent).toEqual([]);
   expect(nikos().invitation).toBeUndefined();
 });
@@ -582,51 +570,12 @@ test('a forget during a pending reply call sends nothing after the call resolves
   expect(transport.sent).toEqual([]);
 });
 
-test('"What is this?" on a moment that turned sensitive sends nothing', async () => {
-  const moment = add();
-  invite(moment);
-  moment.sensitive = true;
-
-  expect(await receive(fromNikos({ button: 'inv:what:m1' }))).toBe(false);
-  expect(transport.sent).toEqual([]);
-  expect(nikos().invitation).toBeUndefined();
-});
-
-test('"What is this?" gets tellDirectly and the voice note of the moment, keeps the invitation open, and a story still gets thanks', async () => {
-  const moment = add({ voice: { id: 'voice-57' } });
-  const invitation = invite(moment);
-  expect(await receive(fromNikos({ button: 'inv:what:m1' }))).toBe(true);
-  expect(messages()).toEqual([
-    ['7', { text: lines.tellDirectly("Maria's first day at school", '25 September 2026', 'Sofia') }],
-    ['7', { voice: { id: 'voice-57' } }],
-  ]);
-  expect(saved()?.members[0].invitation).toMatchObject({ momentId: 'm1', helped: false, replied: true });
-  expect(ask).not.toHaveBeenCalled();
-
-  await tickAt(at(25, 16));
-  expect(transport.sent).toHaveLength(2);
-
-  vi.mocked(ask).mockResolvedValue({ transcript: '', kind: 'story' });
-  await receive(fromNikos({ text: 'She would not let go of my hand' }));
-  expect(transport.sent[2].message).toEqual({ text: lines.thanks, buttons: shareButtons('m1') });
-  expect(nikos().invitation).toBe(invitation);
-});
-
-test('a stale "What is this?" sends nothing', async () => {
-  add({ id: 'm2' });
-  invite(add());
-  expect(await receive(fromNikos({ button: 'inv:what:m2' }))).toBe(true);
-  nikos().invitation = undefined;
-  expect(await receive(fromNikos({ button: 'inv:what:m1' }))).toBe(true);
-  expect(transport.sent).toEqual([]);
-});
-
 test('a question reply gets tellDirectly and keeps the invitation open, and a later unsure reply still gets gentleHelp', async () => {
   invite(add({ eventDate: '1958-06-01' }));
   vi.mocked(ask).mockResolvedValueOnce({ transcript: '', kind: 'question' }).mockResolvedValueOnce({ transcript: '', kind: 'unsure' });
   await receive(fromNikos({ text: 'who is that?' }));
   expect(messages()).toEqual([['7', { text: lines.tellDirectly("Maria's first day at school", '1 June 1958', 'Sofia') }]]);
-  expect(saved()?.members[0].invitation).toMatchObject({ momentId: 'm1', helped: false, replied: true });
+  expect(nikos().invitation).toMatchObject({ momentId: 'm1', helped: false });
 
   await receive(fromNikos({ text: 'a school?' }));
   expect(transport.sent[1].message).toEqual({ text: lines.gentleHelp('1 June 1958', "Maria's first day at school") });
@@ -634,23 +583,11 @@ test('a question reply gets tellDirectly and keeps the invitation open, and a la
 });
 
 test('a question while a story waits for the share buttons still gets tellDirectly', async () => {
-  const waiting = invite(add(), { story: { text: 'She ran in' }, shareAsked: true, replied: true });
+  const waiting = invite(add(), { story: { text: 'She ran in' }, shareAsked: true });
   vi.mocked(ask).mockResolvedValue({ transcript: '', kind: 'question' });
   await receive(fromNikos({ text: 'what is this?' }));
   expect(messages()).toEqual([['7', { text: lines.tellDirectly("Maria's first day at school", '25 September 2026', 'Sofia') }]]);
   expect(nikos().invitation).toBe(waiting);
-});
-
-test('a reply marks the invitation replied before its call returns, so the silent-invitation help never interleaves', async () => {
-  const invitation = invite(add());
-  let answer: (value: unknown) => void;
-  vi.mocked(ask).mockReturnValue(new Promise((resolve) => (answer = resolve)));
-  const reply = receive(fromNikos({ text: 'She would not let go of my hand' }));
-  expect(invitation.replied).toBe(true);
-  await tickAt(at(25, 16));
-  answer({ transcript: '', kind: 'story' });
-  await reply;
-  expect(transport.sent.map(({ message }) => message.text)).toEqual([lines.thanks]);
 });
 
 test('gentleHelp dates the moment by its event date when it has one', async () => {
@@ -700,8 +637,8 @@ test('a failed or invalid reply call reads a voice note or 3 words as a story, a
 test('"Yes, share it" posts storyAdded as a reply to the moment with a mention of the sender, reacts with a big heart, and ignores a second tap', async () => {
   const moment = add();
   invite(moment, { story: { text: 'She would not let go of my hand' }, shareAsked: true });
-  expect(await receive(fromNikos({ button: 'inv:share:m1' }))).toBe(true);
-  expect(await receive(fromNikos({ button: 'inv:share:m1' }))).toBe(true);
+  expect(await receive(fromNikos({ button: 'inv:share:abcd1234' }))).toBe(true);
+  expect(await receive(fromNikos({ button: 'inv:share:abcd1234' }))).toBe(true);
 
   expect(messages()).toEqual([
     ['-100', { text: lines.storyAdded('Nikos', 'Sofia', 'She would not let go of my hand'), replyTo: '57', mention: { id: '1', name: 'Sofia' } }],
@@ -718,7 +655,7 @@ test('"Yes, share it" posts storyAdded as a reply to the moment with a mention o
 test('a shared voice story follows storyAdded as the voice note, not as a reply', async () => {
   const moment = add();
   invite(moment, { story: { text: 'She held my hand', voice: { id: 'voice-a' } }, shareAsked: true });
-  await receive(fromNikos({ button: 'inv:share:m1' }));
+  await receive(fromNikos({ button: 'inv:share:abcd1234' }));
   expect(messages()).toEqual([
     ['-100', { text: lines.storyAdded('Nikos', 'Sofia', 'She held my hand'), replyTo: '57', mention: { id: '1', name: 'Sofia' } }],
     ['-100', { voice: { id: 'voice-a' } }],
@@ -731,57 +668,14 @@ test('a shared voice story follows storyAdded as the voice note, not as a reply'
 test('"No, thanks" sends notShared, closes the invitation, and keeps no story', async () => {
   const moment = add();
   invite(moment, { story: { text: 'She ran in' }, shareAsked: true });
-  await receive(fromNikos({ button: 'inv:keep:m1' }));
+  await receive(fromNikos({ button: 'inv:keep:abcd1234' }));
   expect(messages()).toEqual([['7', { text: lines.notShared }]]);
   expect(saved()?.members[0].invitation).toBeUndefined();
   expect(moment.stories).toEqual([]);
 });
 
-test('"Not now" moves the return to the next 11:00, keeps the count, closes the invitation, and a stale tap does nothing', async () => {
-  const moment = add({ returns: { '7': { count: 3, due: at(29, 11) } } });
-  invite(moment);
-  await receive(fromNikos({ button: 'inv:later:m1' }));
-  expect(saved()?.moments[0].returns['7']).toEqual({ count: 3, due: at(26, 11) });
-  expect(nikos().invitation).toBeUndefined();
-
-  await receive(fromNikos({ button: 'inv:later:m1' }));
-  expect(messages()).toEqual([['7', { text: lines.notNow }]]);
-});
-
-test('"Not now" on a moment with no return entry yet creates one instead of throwing', async () => {
-  const moment = add();
-  invite(moment);
-  await expect(receive(fromNikos({ button: 'inv:later:m1' }))).resolves.toBe(true);
-  expect(moment.returns['7']).toEqual({ count: 0, due: at(26, 11) });
-});
-
-test('"Don\'t bring this back" marks the moment sensitive and closes its invitation, also from a stale invitation', async () => {
-  const moment = add();
-  const older = add({ id: 'm2' });
-  const invitation = invite(moment);
-  await receive(fromNikos({ button: 'inv:never:m2' }));
-  expect(older.sensitive).toBe(true);
-  expect(nikos().invitation).toBe(invitation);
-
-  await receive(fromNikos({ button: 'inv:never:m1' }));
-  expect(saved()?.moments.map(({ sensitive }) => sensitive)).toEqual([true, true]);
-  expect(nikos().invitation).toBeUndefined();
-  expect(transport.sent.map(({ message }) => message.text)).toEqual([lines.dontBringBack, lines.dontBringBack]);
-});
-
-test('a repeated "Don\'t bring this back" tap sends dontBringBack again but saves nothing', async () => {
-  const moment = add();
-  await receive(fromNikos({ button: 'inv:never:m1' }));
-  const save = vi.spyOn(ctx.store, 'save');
-
-  expect(await receive(fromNikos({ button: 'inv:never:m1' }))).toBe(true);
-  expect(moment.sensitive).toBe(true);
-  expect(save).not.toHaveBeenCalled();
-  expect(transport.sent.map(({ message }) => message.text)).toEqual([lines.dontBringBack, lines.dontBringBack]);
-});
-
-test('a reply whose call is still pending when the 11:00 slot closes the invitation sends nothing', async () => {
-  invite(add({ returns: { '7': { count: 1, due: at(27, 11) } } }));
+test('a reply whose call is still pending when the 11:00 slot replaces the memory sends no thanks', async () => {
+  const old = invite(add());
   let answer: (value: unknown) => void;
   vi.mocked(ask).mockReturnValue(new Promise((resolve) => (answer = resolve)));
   const reply = receive(fromNikos({ text: 'She would not let go of my hand' }));
@@ -789,37 +683,10 @@ test('a reply whose call is still pending when the 11:00 slot closes the invitat
   answer({ transcript: '', kind: 'story' });
 
   expect(await reply).toBe(true);
-  expect(transport.sent).toEqual([]);
-  expect(nikos().invitation).toBeUndefined();
+  expect(transport.sent.map(({ message }) => message.text)).toEqual([sofiaSaid, lines.remindYou]);
+  expect(old.story).toBeUndefined();
+  expect(nikos().invitation).not.toBe(old);
 });
-
-test('a delivery stops when its invitation closes while the voice clip is pending', async () => {
-  add();
-  vi.mocked(ask).mockResolvedValue({ transcript: '', kind: 'other' });
-  let clip: (value: Buffer) => void;
-  vi.mocked(speak).mockReturnValue(new Promise((resolve) => (clip = resolve)));
-  const delivery = tickAt(at(25, 11));
-  await vi.waitFor(() => expect(speak).toHaveBeenCalled());
-  await receive(fromNikos({ text: 'ok' }));
-  clip(wav);
-  await delivery;
-
-  expect(transport.sent.map(({ message }) => message)).toEqual([{ photo: { id: 'photo-57' } }, { text: lines.warmClose }]);
-});
-
-test('a delivery stops before the voice note when the moment is forgotten while the voice clip is pending', async () => {
-  const moment = add();
-  let clip: (value: Buffer) => void;
-  vi.mocked(speak).mockReturnValue(new Promise((resolve) => (clip = resolve)));
-  const delivery = tickAt(at(25, 11));
-  await vi.waitFor(() => expect(speak).toHaveBeenCalled());
-  family.moments.splice(family.moments.indexOf(moment), 1);
-  clip(wav);
-  await delivery;
-
-  expect(transport.sent.map(({ message }) => message)).toEqual([{ photo: { id: 'photo-57' } }]);
-});
-
 test('a reply to an invitation whose moment was forgotten closes the invitation and is left to the router', async () => {
   invite(add());
   family.moments.length = 0;

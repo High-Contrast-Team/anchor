@@ -132,7 +132,7 @@ export async function callMember(family: Family, member: Member, ctx: Context, r
   if (!member.phone || !process.env.TWILIO_FROM || !base) return false;
   const connectTo = moment && family.members.find((other) => other.id === moment.by.id)?.phone;
   const goodbye = spoken(lines.call.goodbye(member.name));
-  const opener = [lines.call.opening(member.name), reminder && reminderLine(reminder), moment ? lines.spokenInvitation(moment) : !reminder && lines.call.askAnything]
+  const opener = [lines.call.opening(member.name), reminder && reminderLine(reminder), moment ? `${lines.spokenMoment(moment)}\n${lines.remindYou}` : !reminder && lines.call.askAnything]
     .filter(Boolean)
     .map(spoken)
     .join(' ');

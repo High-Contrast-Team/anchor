@@ -122,9 +122,15 @@ export const forget: Feature = {
   },
 };
 
-async function close(bundle: Bundle, family: Family, ctx: Context) {
-  bundle.closing = true;
+// a bundle closes once, and a second caller waits for the same classification
+const close = (bundle: Bundle, family: Family, ctx: Context) => (bundle.closing ??= classifyAndSave(bundle, family, ctx));
 
+// /fastforward closes every open bundle before the clock moves, so a text-only moment still joins the memory of the next day
+export async function flush(family: Family, ctx: Context) {
+  await Promise.all(bundles.filter((bundle) => bundle.family === family).map((bundle) => close(bundle, family, ctx)));
+}
+
+async function classifyAndSave(bundle: Bundle, family: Family, ctx: Context) {
   if (!worthClassifying(bundle)) {
     removeBundle(bundle);
     count(family, 'rules');

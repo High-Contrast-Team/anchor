@@ -138,7 +138,7 @@ test('my data exports what the person shared, sensitive included, and delete rem
   const theirs = { id: 's2', by: nikos, at: 2, text: 'his story', messageIds: [] };
   family.moments.push(
     moment('m1', sofia, { sensitive: true }),
-    moment('m2', nikos, { stories: [mine, theirs], returns: { [sofia.id]: { count: 1, due: 0 }, [nikos.id]: { count: 1, due: 0 } } }),
+    moment('m2', nikos, { stories: [mine, theirs], returns: { [sofia.id]: { count: 1 }, [nikos.id]: { count: 1 } } }),
   );
   family.reminders.push({ id: 'r1', to: sofia.id, from: nikos, text: 'pills at 8', sourceId: 'g1', time: '08:00', status: 'set' });
   family.offers.push({ id: 'o1', kind: 'share', to: sofia.id, messageId: 'e1', at: 0, ref: 'm2' });

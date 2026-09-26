@@ -2,74 +2,47 @@ import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { dayIndex, slotIn } from '../core/clock';
 import { dateOf, lines } from '../core/lines';
+import { shortId } from '../core/offers';
 import { byPriority } from '../core/priority';
-import { tell, VOICE_STYLE } from '../core/tell';
-import {
-  Blocked,
-  type Context,
-  type Family,
-  type Feature,
-  type Incoming,
-  type Invitation,
-  type Media,
-  type Moment,
-  type Outgoing,
-  type Member,
-  type Person,
-  type Transport,
-} from '../core/types';
-import { ask, speak, valid } from '../model/model';
+import { tell } from '../core/tell';
+import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Member, Moment, Outgoing, Person, Transport } from '../core/types';
+import { ask, valid } from '../model/model';
 import { react } from './capture/capture';
 import { asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
+import { captionFor } from './memories';
 import { nextSteps } from './members';
 
-export const GAP_DAYS = [1, 2, 4, 8, 16, 32];
-export const MAX_RETURNS = 7;
-const THREE_HOURS = 3 * 3_600_000;
+const WEEK_MS = 7 * 86_400_000;
+const MAX_MOMENTS = 5;
 const KINDS = ['story', 'unsure', 'question', 'request', 'other'] as const;
 const REPLY_SCHEMA = {
   type: 'object',
   properties: { transcript: { type: 'string' }, kind: { type: 'string', enum: KINDS } },
   required: ['transcript', 'kind'],
 };
-const BUTTON = /^inv:(later|never|share|keep|what):(.+)$/;
+// the old single-moment buttons carry a moment id, so they match too, and a tap on them only removes them
+const BUTTON = /^inv:(\w+):(.+)$/;
 const QUESTION_WORD = /^(who|what|where|when|which|why)\b/i;
 const logger = new Logger('Invitations');
 
 type Reading = { kind: (typeof KINDS)[number]; transcript: string };
 
-export function qualifies(moment: Moment, memberId: string, now: number): boolean {
-  const back = moment.returns[memberId];
-  return (
-    moment.by.id !== memberId &&
-    !moment.sensitive &&
-    now - moment.savedAt >= THREE_HOURS &&
-    (back?.due ?? 0) <= now &&
-    (back?.count ?? 0) < MAX_RETURNS
-  );
+// the spike of 2026-09-26, decisions 6 and 10: up to 5 moments of the past week, the member's own included, oldest first; a week with no moment
+// takes the 5 newest, so a run of more than 7 jumps still gets a memory
+export function weekOf(family: Family, member: Member, slot: number): Moment[] {
+  const hidden = new Set(member.hidden);
+  const shown = family.moments
+    .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && moment.savedAt <= slot)
+    .sort((a, b) => b.savedAt - a.savedAt);
+  const week = shown.filter((moment) => slot - moment.savedAt <= WEEK_MS);
+  return (week.length ? week : shown).slice(0, MAX_MOMENTS).reverse();
 }
 
-export function nextSlot(now: number): number {
-  const slot = elevenOn(now);
-  return slot > now ? slot : afterDays(slot, 1);
-}
-
-function afterDays(time: number, days: number) {
-  const date = new Date(time);
-  date.setDate(date.getDate() + days);
-  return date.getTime();
-}
-
-function elevenOn(time: number): number {
-  const date = new Date(time);
-  date.setHours(11, 0, 0, 0);
-  return date.getTime();
-}
-
-function warnUnlessBlocked(error: unknown, what: string): undefined {
-  if (error instanceof Blocked) throw error;
-  logger.warn(`${what} failed: ${error}`);
-  return undefined;
+// the member who shared the most moments other than this member, and the earlier sharer on a tie; the moments come oldest first
+function topSharer(moments: Moment[], member: Member): Person | undefined {
+  const others = moments.filter((moment) => moment.by.id !== member.id);
+  const count = (id: string) => others.filter((moment) => moment.by.id === id).length;
+  return others.reduce<Person | undefined>((top, moment) => (!top || count(moment.by.id) > count(top.id) ? moment.by : top), undefined);
 }
 
 async function announce(family: Family, message: Outgoing, ctx: Context) {
@@ -81,120 +54,143 @@ async function announce(family: Family, message: Outgoing, ctx: Context) {
   }
 }
 
-const isOpen = (family: Family, member: Member, invitation: Invitation, moment: Moment) =>
-  member.invitation === invitation && family.moments.includes(moment) && !moment.sensitive;
-
-async function deliver(family: Family, member: Member, moment: Moment, at: number, ctx: Context) {
-  const invitation: Invitation = {
-    momentId: moment.id,
-    day: dayIndex(at),
-    messageIds: [],
-    shareAsked: false,
-    helped: false,
-    sentAt: ctx.now(),
-    replied: false,
-  };
-  member.invitation = invitation;
-  if (moment.savedAt > (member.seenAt ?? 0)) member.seenAt = moment.savedAt;
-  const count = (moment.returns[member.id]?.count ?? 0) + 1;
-  moment.returns[member.id] = { count, due: afterDays(elevenOn(at), GAP_DAYS[count - 1] ?? 0) };
-  ctx.store.save();
-
-  const open = () => isOpen(family, member, invitation, moment);
-  const transport = ctx.transport(family.id);
-  const post = async (message: Outgoing) => {
-    const sent = await transport.send(member.id, message);
-    invitation.messageIds.push(sent.messageId);
-    return sent;
-  };
-  const text = lines.invitation(moment);
-  const buttons = [
-    { label: lines.buttons.whatIsThis, data: `inv:what:${moment.id}` },
-    { label: lines.buttons.notNow, data: `inv:later:${moment.id}` },
-    { label: lines.buttons.dontBringBack, data: `inv:never:${moment.id}` },
-  ];
+async function setButtons(family: Family, member: Member, messageId: string, buttons: Button[], ctx: Context) {
   try {
-    const picture = pictureOf(moment);
-    if (picture) await post(picture).catch((error) => warnUnlessBlocked(error, `The picture of moment ${moment.id}`));
-    if (!open()) return;
-    try {
-      const voice = moment.invitationVoice ?? { wav: await speak(lines.spokenInvitation(moment), VOICE_STYLE) };
-      if (!open()) return;
-      const sent = await post({ voice, text, buttons });
-      moment.invitationVoice ??= sent.voice;
-    } catch (error) {
-      warnUnlessBlocked(error, `The invitation voice of moment ${moment.id}`);
-      if (!open()) return;
-      await post({ text, buttons }).catch((error) => warnUnlessBlocked(error, `The invitation of moment ${moment.id}`));
-    }
-    if (open()) ctx.store.save();
+    await ctx.transport(family.id).edit(member.id, messageId, { buttons });
   } catch (error) {
-    if (!(error instanceof Blocked)) throw error;
-    member.started = false;
-    if (open()) member.invitation = undefined;
-    ctx.store.save();
+    logger.warn(`The buttons of message ${messageId} to member ${member.id} failed to edit: ${error}`);
   }
 }
 
-// v2, section 4.5: an asked-for moment or a share skips the 3-hour rule and the due check, and closes the open invitation first
+const memoryButtons = (id: string): Button[] => [
+  { label: lines.buttons.tellMeMore, data: `inv:more:${id}` },
+  { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
+  { label: lines.buttons.notNow, data: `inv:later:${id}` },
+];
+
+const replyButtons = (id: string): Button[] =>
+  lines.familyReplies.map(([emoji, words], index) => ({ label: `${emoji} ${words}`, data: `inv:say${index}:${id}` }));
+
+const isOpen = (family: Family, member: Member, invitation: Invitation, moment: Moment) =>
+  member.invitation === invitation && family.moments.includes(moment) && !moment.sensitive;
+
+// the album or the picture carries the caption, and one message with the buttons follows, because an album carries no buttons
+async function deliver(family: Family, member: Member, moments: Moment[], ctx: Context, caption?: string) {
+  const sharer = topSharer(moments, member);
+  const lead = [...moments].reverse().find((moment) => moment.by.id === sharer?.id) ?? moments[moments.length - 1];
+  const invitation: Invitation = { id: shortId(), momentId: lead.id, momentIds: moments.map((moment) => moment.id), shareAsked: false, helped: false };
+  member.invitation = invitation;
+  member.seenAt = Math.max(member.seenAt ?? 0, ...moments.map((moment) => moment.savedAt));
+  for (const moment of moments) moment.returns[member.id] = { count: (moment.returns[member.id]?.count ?? 0) + 1 };
+  ctx.store.save();
+
+  const [one] = moments;
+  const head = moments.length > 1 ? lines.weekMemory(caption ?? lines.weekShared(moments)) : lines.sharedBy(one);
+  const spokenHead = moments.length > 1 ? head : lines.spokenMoment(one);
+  const pictures = moments.flatMap((moment) => pictureOf(moment) ?? []);
+  if (pictures.length) await tell(family, member, { ...(pictures.length > 1 ? { album: pictures } : pictures[0]), text: head }, ctx);
+  if (!member.started || member.invitation !== invitation) return;
+  const text = pictures.length ? lines.remindYou : `${head}\n${lines.remindYou}`;
+  await tell(family, member, { text, buttons: memoryButtons(invitation.id) }, ctx, `${spokenHead}\n${lines.remindYou}`);
+}
+
+// v2, section 4.5: a share offer and "Send me a moment" send a memory of one moment, and replace the open memory
 export async function sendNow(family: Family, member: Member, moment: Moment, ctx: Context) {
-  await deliver(family, member, moment, ctx.now(), ctx); // deliver replaces the open invitation at once
+  await deliver(family, member, [moment], ctx);
 }
 
 // the sendMe intent: the moment with the fewest returns to this member, and byPriority breaks a tie
 export async function sendMe(family: Family, member: Member, ctx: Context) {
-  const now = ctx.now();
-  const priority = byPriority(now);
+  const priority = byPriority(ctx.now());
+  const hidden = new Set(member.hidden);
   const returns = (moment: Moment) => moment.returns[member.id]?.count ?? 0;
   const [moment] = family.moments
-    .filter((item) => !item.sensitive && item.by.id !== member.id && returns(item) < MAX_RETURNS)
+    .filter((item) => !item.sensitive && item.by.id !== member.id && !hidden.has(item.id))
     .sort((a, b) => returns(a) - returns(b) || priority(a, b));
   if (moment) return sendNow(family, member, moment, ctx);
   await tell(family, member, { text: lines.nothingNew, buttons: nextSteps(member, 'sendMe') }, ctx);
 }
 
+async function tellMore(invitation: Invitation, moments: Moment[], family: Family, member: Member, ctx: Context) {
+  const buttons = [
+    { label: lines.buttons.replyToFamily, data: `inv:reply:${invitation.id}` },
+    { label: lines.buttons.dontShowThese, data: `inv:hide:${invitation.id}` },
+  ];
+  const voices = moments.flatMap((moment) => (moment.voice ? [moment.voice] : []));
+  await tell(family, member, { text: lines.aboutMoments(moments), ...(voices.length ? {} : { buttons }) }, ctx, lines.aboutMoments(moments, true));
+  for (const [index, voice] of voices.entries()) await tell(family, member, { voice, ...(index === voices.length - 1 ? { buttons } : {}) }, ctx);
+}
+
+// a tap changes the tapped buttons in place, so it never waits for a new voice note; only "Tell me more" and the call question send one
+async function tap(action: string, event: Incoming, invitation: Invitation, family: Family, member: Member, ctx: Context) {
+  const moments = invitation.momentIds.flatMap((id) => family.moments.find((moment) => moment.id === id && !moment.sensitive) ?? []);
+  const change = (buttons: Button[]) => setButtons(family, member, event.messageId, buttons, ctx);
+  const done = (label: string) => change([{ label, data: `inv:done:${invitation.id}` }]);
+  const words = lines.familyReplies[Number(action.match(/^say(\d)$/)?.[1])];
+  const sharer = topSharer(moments, member);
+  if (!moments.length) {
+    member.invitation = undefined;
+    ctx.store.save();
+    await change([]);
+  } else if (action === 'more') {
+    await tellMore(invitation, moments, family, member, ctx);
+  } else if (action === 'reply') {
+    if (!invitation.said) await change(replyButtons(invitation.id));
+  } else if (action === 'later') {
+    await done(lines.done.later);
+  } else if (action === 'nocall') {
+    await change([]);
+  } else if (action === 'hide') {
+    member.hidden = [...new Set([...(member.hidden ?? []), ...invitation.momentIds])];
+    member.invitation = undefined;
+    ctx.store.save();
+    await done(lines.done.hidden);
+  } else if (words && !invitation.said) {
+    invitation.said = true;
+    ctx.store.save();
+    await done(lines.done.sent);
+    const lead = moments.find((moment) => moment.id === invitation.momentId);
+    await announce(family, { text: lines.familyReply(member.name, words), replyTo: lead?.messageIds[0] }, ctx);
+    if (!sharer) return;
+    const buttons = [
+      { label: lines.buttons.askCall(sharer.name), data: `inv:call:${invitation.id}` },
+      { label: lines.buttons.noThanks, data: `inv:nocall:${invitation.id}` },
+    ];
+    await tell(family, member, { text: lines.askCall(sharer.name), buttons }, ctx);
+  } else if (action === 'call' && sharer && !invitation.askedCall) {
+    invitation.askedCall = true;
+    ctx.store.save();
+    await done(lines.done.askedCall(sharer.name));
+    await announce(family, { text: lines.wouldLoveCall(member.name, sharer.name), mention: sharer }, ctx);
+  }
+}
+
 async function inPrivate(event: Incoming, family: Family, member: Member, ctx: Context): Promise<boolean> {
-  const [, action, momentId] = event.button?.match(BUTTON) ?? [];
+  const [, action, id] = event.button?.match(BUTTON) ?? [];
   if ((event.button && !action) || event.text?.startsWith('/')) return false;
-  // a fixed phrase such as "settings" or "what did I miss?" goes to intents, and the open invitation stays open; a longer story that names
+  // a fixed phrase such as "settings" or "what did I miss?" goes to intents, and the open memory stays open; a longer story that names
   // birthdays or choices in passing goes to the reply call, which still reads a request
   if (!action && ((wordCount(event.text) <= 6 && privateIntent(event.text)) || asksAnchor(event.text))) return false;
-  if (action === 'never') {
-    const moment = family.moments.find((item) => item.id === momentId);
-    let changed = false;
-    if (moment && !moment.sensitive) {
-      moment.sensitive = true;
-      changed = true;
-    }
-    if (member.invitation?.momentId === momentId) {
-      member.invitation = undefined;
-      changed = true;
-    }
-    if (changed) ctx.store.save();
-    await tell(family, member, { text: lines.dontBringBack }, ctx);
+  if (action === 'done') return true;
+  const invitation = member.invitation;
+  if (action && invitation?.id !== id) {
+    await setButtons(family, member, event.messageId, [], ctx);
     return true;
   }
-  const invitation = member.invitation;
-  if (action && invitation?.momentId !== momentId) return true;
   if (!invitation) return false;
+  if (action && action !== 'share' && action !== 'keep') {
+    await tap(action, event, invitation, family, member, ctx);
+    return true;
+  }
   const moment = family.moments.find((item) => item.id === invitation.momentId);
   if (!moment || moment.sensitive) {
     member.invitation = undefined;
     ctx.store.save();
     return false;
   }
-  if (action === 'what') {
-    markReplied(invitation, ctx);
-    await explain(tellDirectly(moment), invitation, moment, family, member, ctx);
-  } else if (action) await settle(action, invitation, moment, family, member, ctx);
-  else return reply(event, invitation, moment, family, member, ctx);
+  if (!action) return reply(event, invitation, moment, family, member, ctx);
+  await settle(action, invitation, moment, family, member, ctx);
   return true;
-}
-
-function markReplied(invitation: Invitation, ctx: Context) {
-  if (invitation.replied) return;
-  invitation.replied = true;
-  ctx.store.save();
 }
 
 const gentleHelp = (moment: Moment) => lines.gentleHelp(dateOf(moment), moment.title);
@@ -211,7 +207,7 @@ export async function shareStory(family: Family, person: Person, moment: Moment,
     { text: lines.storyAdded(person.name, moment.by.name, story.text), replyTo: moment.messageIds[0], mention: moment.by },
     ctx,
   );
-  if (added) await react(ctx, family, family.chatId, added.messageId, '\u2764', true);
+  if (added) await react(ctx, family, family.chatId, added.messageId, '❤', true);
   const spoken = story.voice ? await announce(family, { voice: story.voice }, ctx) : undefined;
   if (family.moments.includes(moment)) {
     moment.stories.push({
@@ -230,11 +226,7 @@ async function settle(action: string, invitation: Invitation, moment: Moment, fa
   const story = invitation.story;
   if (action === 'share' && !story) return;
   member.invitation = undefined;
-  if (action === 'later') {
-    (moment.returns[member.id] ??= { count: 0, due: 0 }).due = nextSlot(ctx.now());
-    ctx.store.save();
-    await tell(family, member, { text: lines.notNow }, ctx);
-  } else if (action === 'keep') {
+  if (action === 'keep') {
     ctx.store.save();
     await tell(family, member, { text: lines.notShared }, ctx);
   } else {
@@ -243,9 +235,8 @@ async function settle(action: string, invitation: Invitation, moment: Moment, fa
   }
 }
 
-// false hands a request to Anchor on to intents, and the invitation stays open
+// false hands a request to Anchor on to intents, and the memory stays open
 async function reply(event: Incoming, invitation: Invitation, moment: Moment, family: Family, member: Member, ctx: Context): Promise<boolean> {
-  markReplied(invitation, ctx);
   const reading: Reading =
     event.unsupported || event.forwarded
       ? { kind: 'other', transcript: '' }
@@ -262,8 +253,8 @@ async function reply(event: Incoming, invitation: Invitation, moment: Moment, fa
     ctx.store.save();
     if (!first) return true;
     const buttons = [
-      { label: lines.buttons.share, data: `inv:share:${moment.id}` },
-      { label: lines.buttons.dontShare, data: `inv:keep:${moment.id}` },
+      { label: lines.buttons.share, data: `inv:share:${invitation.id}` },
+      { label: lines.buttons.noThanks, data: `inv:keep:${invitation.id}` },
     ];
     await tell(family, member, { text: lines.thanks, buttons }, ctx);
     return true;
@@ -283,20 +274,6 @@ async function reply(event: Incoming, invitation: Invitation, moment: Moment, fa
   ctx.store.save();
   await tell(family, member, { text: lines.warmClose }, ctx);
   return true;
-}
-
-async function helpIfSilent(family: Family, member: Member, now: number, ctx: Context) {
-  const invitation = member.invitation;
-  if (!member.started || !member.choices.moments || !invitation || invitation.replied || invitation.helped || !(now - invitation.sentAt >= THREE_HOURS)) return;
-  const moment = family.moments.find((item) => item.id === invitation.momentId);
-  if (!moment || moment.sensitive) {
-    member.invitation = undefined;
-    ctx.store.save();
-    return;
-  }
-  invitation.helped = true;
-  ctx.store.save();
-  await explain(gentleHelp(moment), invitation, moment, family, member, ctx);
 }
 
 // a short text that ends with "?" is a hesitation or a question, so code decides it and the model cannot turn it into a story
@@ -346,17 +323,26 @@ export const invitations: Feature = {
     return member ? inPrivate(event, family, member, ctx) : false;
   },
 
+  // decisions 6 and 10: every started member with family moments gets the memory of the week at each 11:00, also after each /fastforward 1
   async tick(family, window, ctx) {
     const slot = slotIn(window, 11);
-    for (const member of family.members) {
-      if (slot !== undefined && member.started && member.choices.moments && member.lastInvitationDay !== dayIndex(slot)) {
+    if (slot === undefined) return;
+    const day = dayIndex(slot);
+    const captions = new Map<string, Promise<string | undefined>>();
+    const caption = (moments: Moment[]) => {
+      const key = moments.map((moment) => moment.id).join();
+      if (!captions.has(key)) captions.set(key, captionFor(lines.weekLabel, moments));
+      return captions.get(key);
+    };
+    const due = family.members.filter((member) => member.started && member.choices.moments && member.lastInvitationDay !== day);
+    await Promise.all(
+      due.map(async (member) => {
         member.invitation = undefined;
-        member.lastInvitationDay = dayIndex(slot);
-        const [moment] = family.moments.filter((item) => qualifies(item, member.id, slot)).sort(byPriority(slot));
-        if (moment) await deliver(family, member, moment, slot, ctx);
-        else ctx.store.save();
-      }
-      await helpIfSilent(family, member, window.to, ctx);
-    }
+        member.lastInvitationDay = day;
+        const moments = weekOf(family, member, slot);
+        if (!moments.length) return ctx.store.save();
+        await deliver(family, member, moments, ctx, moments.length > 1 ? await caption(moments) : undefined);
+      }),
+    );
   },
 };

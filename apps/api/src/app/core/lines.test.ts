@@ -38,26 +38,51 @@ test('a moment with words keeps the quoting lines byte for byte', () => {
   expect(lines.memoryCaption('One week ago', moment())).toBe(
     'One week ago 💛\nSofia shared: «Maria on her first day»\nReply with a story or a voice note to add it to the family record.',
   );
-  expect(lines.invitation(moment())).toBe('Sofia shared: «Maria on her first day»\nWhat does it remind you of?');
   expect(lines.echoCaption(moment({ by: nikos, text: 'My first day, 1958' }), moment())).toBe(
     'Then and now 💛\nNikos shared: «My first day, 1958»\nSofia shared: «Maria on her first day»',
   );
 });
 
-test("spokenInvitation says the description after the sharer's words, and the text invitation holds none", () => {
-  const described = moment({ photo: { id: 'p1' }, description: 'The photo shows a girl with a red backpack at a school gate.' });
-  expect(lines.spokenInvitation(described)).toBe(
-    'Sofia shared: «Maria on her first day»\nThe photo shows a girl with a red backpack at a school gate.\nWhat does it remind you of?',
+test('a private memory names each moment with its date, and only the voice says what the picture shows', () => {
+  const described = moment({
+    photo: { id: 'p1' },
+    savedAt: new Date(2026, 8, 25, 12).getTime(),
+    description: 'The photo shows a girl with a red backpack at a school gate.',
+  });
+  const other = moment({ by: nikos, text: 'Sunday lunch', savedAt: new Date(2026, 8, 20, 12).getTime() });
+  expect(lines.aboutMoments([described, other])).toBe(
+    'Sofia shared: «Maria on her first day» · 25 September 2026\nNikos shared: «Sunday lunch» · 20 September 2026',
   );
-  expect(lines.invitation(described)).toBe('Sofia shared: «Maria on her first day»\nWhat does it remind you of?');
-  expect(lines.spokenInvitation(moment())).toBe(lines.invitation(moment()));
+  expect(lines.aboutMoments([described, other], true)).toBe(
+    'Sofia shared: «Maria on her first day» · 25 September 2026\nThe photo shows a girl with a red backpack at a school gate.\n' +
+      'Nikos shared: «Sunday lunch» · 20 September 2026',
+  );
+  expect(lines.aboutMoments([moment({ text: 'a'.repeat(300) })])).toContain(`«${'a'.repeat(119)}…»`);
 });
 
-test('a wordless photo goes through memoryCaption, invitation, and echoCaption with the photo phrase and no quote mark', () => {
+test('the private memory lines read as the spike writes them', () => {
+  expect(lines.weekMemory('Sofia and Nikos shared a school day.')).toBe('This week in the family 💛\nSofia and Nikos shared a school day.');
+  expect(lines.weekShared([moment(), moment({ by: nikos }), moment()])).toBe('Sofia and Nikos shared 3 moments.');
+  expect(lines.remindYou).toBe('What does it remind you of?');
+  expect(lines.familyReplies.map(([emoji, words]) => `${emoji} ${words}`)).toEqual(['❤️ Sending my love', '😊 That made me smile', '💛 I miss you all']);
+  expect(lines.familyReply('Sofia', lines.familyReplies[2])).toBe('Sofia: «I miss you all 💛»');
+  expect(lines.askCall('Eleni')).toBe('Shall I ask Eleni to call you?');
+  expect(lines.done).toEqual({
+    sent: '✅ Sent to the family',
+    later: '✅ Another day, then',
+    hidden: "✅ I won't show you these again",
+    askedCall: expect.any(Function),
+  });
+  expect(lines.done.askedCall('Eleni')).toBe('✅ Asked Eleni to call you');
+  expect([lines.buttons.tellMeMore, lines.buttons.replyToFamily, lines.buttons.notNow]).toEqual(['Tell me more', 'Reply to the family', 'Later, please']);
+  expect([lines.buttons.askCall('Eleni'), lines.buttons.dontShowThese]).toEqual(['Yes, ask Eleni', "Don't show me these again"]);
+});
+
+test('a wordless photo goes through memoryCaption, aboutMoments, and echoCaption with the photo phrase and no quote mark', () => {
   const photo = wordless({ photo: { id: 'p1' } });
   const outputs = [
     lines.memoryCaption('One week ago', photo),
-    lines.invitation(photo),
+    lines.aboutMoments([photo]),
     lines.echoCaption(photo, wordless({ by: nikos, video: { id: 'v1' } })),
   ];
   for (const output of outputs) {
@@ -66,12 +91,12 @@ test('a wordless photo goes through memoryCaption, invitation, and echoCaption w
   }
 });
 
-test('invitation and memoryCaption clip a long quote to 600 characters that end with …', () => {
+test('sharedBy and memoryCaption clip a long quote to 600 characters that end with …', () => {
   const long = moment({ text: 'a'.repeat(2000) });
   const clip = `«${'a'.repeat(599)}…»`;
-  expect(lines.invitation(long)).toContain(clip);
+  expect(lines.sharedBy(long)).toContain(clip);
   expect(lines.memoryCaption('One week ago', long)).toContain(clip);
-  expect(lines.invitation(moment({ text: 'b'.repeat(600) }))).toContain(`«${'b'.repeat(600)}»`);
+  expect(lines.sharedBy(moment({ text: 'b'.repeat(600) }))).toContain(`«${'b'.repeat(600)}»`);
 });
 
 test('storyAdded clips its quote to 600 characters', () => {
@@ -87,9 +112,9 @@ test('echoCaption clips each quote to 450 characters, so the caption stays under
 });
 
 test('the clip keeps whole emoji and stays inside 600 UTF-16 units', () => {
-  expect(lines.invitation(moment({ text: `${'a'.repeat(597)}😀😀😀` }))).toContain(`«${'a'.repeat(597)}😀…»`);
-  expect(lines.invitation(moment({ text: `${'a'.repeat(597)}👨‍👩‍👧 end` }))).toContain(`«${'a'.repeat(597)}…»`);
-  expect(lines.invitation(moment({ text: `${'a'.repeat(596)}🇬🇷🇬🇷` }))).toContain(`«${'a'.repeat(596)}…»`);
+  expect(lines.sharedBy(moment({ text: `${'a'.repeat(597)}😀😀😀` }))).toContain(`«${'a'.repeat(597)}😀…»`);
+  expect(lines.sharedBy(moment({ text: `${'a'.repeat(597)}👨‍👩‍👧 end` }))).toContain(`«${'a'.repeat(597)}…»`);
+  expect(lines.sharedBy(moment({ text: `${'a'.repeat(596)}🇬🇷🇬🇷` }))).toContain(`«${'a'.repeat(596)}…»`);
   expect(lines.memoryCaption('One week ago', moment({ text: '😀'.repeat(700) }))).toContain(`«${'😀'.repeat(299)}…»`);
 });
 
@@ -103,11 +128,6 @@ test('the welcome, stop, and just-ask lines read as the design writes them', () 
   expect(lines.tellDirectly("Maria's first day at school", '25 September 2026', 'Sofia')).toBe(
     "This is Maria's first day at school, from 25 September 2026. Sofia shared it 💛",
   );
-  expect([lines.buttons.whatIsThis, lines.buttons.notNow, lines.buttons.dontBringBack]).toEqual([
-    'Tell me about it',
-    'Later, please',
-    "Don't show me this again",
-  ]);
 });
 
 test('intro points to the choices button instead of /private', () => {
@@ -145,7 +165,8 @@ test('the v2 reminder and call lines read as the design writes them', () => {
   expect(lines.call.goodbye('Nikos')).toBe('Thank you, Nikos. Goodbye 💛');
   expect(lines.wouldLoveCall('Nikos', 'Sofia')).toBe('Sofia, Nikos would love a call from you 💛');
   expect(lines.buttons.remindAt('08:00')).toBe('Yes, at 08:00');
-  expect(lines.buttons.anotherTime).toBe('Another time');
-  expect(lines.buttons.noThanks).toBe('No thanks');
+  expect(lines.buttons.anotherTime).toBe('Pick another time');
+  expect(lines.buttons.noThanks).toBe('No, thanks');
+  expect(lines.buttons.stopOffering).toBe('Stop offering to share');
   expect(lines.buttons.stopReminders).toBe('Stop offering reminders');
 });

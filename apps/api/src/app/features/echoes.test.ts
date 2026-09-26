@@ -15,6 +15,7 @@ vi.mock('../model/model', async (importOriginal) => ({ ...(await importOriginal<
 type MomentIdSchema = { properties: { momentId: { enum: string[] }; earlier: { enum: string[] } } };
 
 const NOW = new Date(2026, 8, 25, 12).getTime();
+const WEEK = 7 * 86_400_000;
 const sofia: Person = { id: 'u-sofia', name: 'Sofia' };
 const dimitris: Person = { id: 'u-dimitris', name: 'Dimitris' };
 
@@ -44,7 +45,7 @@ function makeMoment(over: Partial<Moment> = {}): Moment {
 }
 
 function pair(family: Family, newer: Partial<Moment> = {}) {
-  const candidate = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const candidate = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW, ...newer });
   family.moments.push(candidate, newMoment);
   return { candidate, newMoment };
@@ -62,7 +63,7 @@ function setup() {
 
 test('a match with earlier match posts an album with the older moment first and sets echo', async () => {
   const { file, transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 2000, title: 'first day', text: 'his first day', photo: { id: 'photo-older' } });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 2000, title: 'first day', text: 'his first day', photo: { id: 'photo-older' } });
   const newer = makeMoment({ by: sofia, savedAt: NOW, title: 'first day again', text: 'her first day', photo: { id: 'photo-newer' } });
   family.moments.push(older, newer);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -89,7 +90,7 @@ test('a match with earlier new keeps the newer moment first, the journey case', 
   const { transport, family, router } = setup();
   const maria = makeMoment({
     by: sofia,
-    savedAt: NOW - 5 * 86400000,
+    savedAt: NOW - 12 * 86400000,
     title: "Maria's first day",
     text: 'Maria walked in smiling',
     photo: { id: 'maria-photo' },
@@ -120,7 +121,7 @@ test('a match with earlier new keeps the newer moment first, the journey case', 
 test('different eventDate values order the older event first, even when earlier names the other moment', async () => {
   const { transport, family, router } = setup();
   const newer = makeMoment({ by: dimitris, savedAt: NOW, eventDate: '2015-06-01', text: 'new text', photo: { id: 'p-new' } });
-  const older = makeMoment({ by: sofia, savedAt: NOW - 5000, eventDate: '2020-06-01', text: 'match text', photo: { id: 'p-match' } });
+  const older = makeMoment({ by: sofia, savedAt: NOW - WEEK - 5000, eventDate: '2020-06-01', text: 'match text', photo: { id: 'p-match' } });
   family.moments.push(older, newer);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
   await router.tick({ from: NOW - 10, to: NOW });
@@ -188,26 +189,24 @@ test('a new moment with an echo already gets no call', async () => {
 
 test('a send failure for the first new moment does not stop the second from getting its echo', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 10000, photo: { id: 'older-photo' } });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 10000, photo: { id: 'older-photo' } });
   const first = makeMoment({ by: sofia, savedAt: NOW - 5, photo: { id: 'first-photo' } });
-  const second = makeMoment({ by: dimitris, savedAt: NOW, photo: { id: 'second-photo' } });
+  const second = makeMoment({ by: { id: 'u-eleni', name: 'Eleni' }, savedAt: NOW, photo: { id: 'second-photo' } });
   family.moments.push(older, first, second);
   vi.spyOn(transport, 'send').mockRejectedValueOnce(new Error('network blip'));
-  vi.mocked(ask)
-    .mockResolvedValueOnce({ momentId: older.id, earlier: 'match' })
-    .mockResolvedValueOnce({ momentId: first.id, earlier: 'match' });
+  vi.mocked(ask).mockResolvedValue({ momentId: older.id, earlier: 'match' });
   await router.tick({ from: NOW - 10, to: NOW });
 
   expect(ask).toHaveBeenCalledTimes(2);
   expect(first.echo).toBe(older.id);
-  expect(second.echo).toBe(first.id);
+  expect(second.echo).toBe(older.id);
   expect(transport.sent).toEqual([
     {
       chatId: '-100',
       messageId: 'sent-1',
       message: {
-        album: [{ photo: { id: 'first-photo' } }, { photo: { id: 'second-photo' } }],
-        text: lines.echoCaption(first, second),
+        album: [{ photo: { id: 'older-photo' } }, { photo: { id: 'second-photo' } }],
+        text: lines.echoCaption(older, second),
       },
     },
   ]);
@@ -215,7 +214,7 @@ test('a send failure for the first new moment does not stop the second from gett
 
 test('a moment marked sensitive by the time its turn comes gets no model call', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 10000 });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 10000 });
   const first = makeMoment({ by: sofia, savedAt: NOW - 5 });
   const second = makeMoment({ by: dimitris, savedAt: NOW });
   family.moments.push(older, first, second);
@@ -231,7 +230,7 @@ test('a moment marked sensitive by the time its turn comes gets no model call', 
 
 test('a same-sender pair gets no call when the only older moment has the same sender', async () => {
   const { family, router } = setup();
-  const older = makeMoment({ by: sofia, savedAt: NOW - 1000 });
+  const older = makeMoment({ by: sofia, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW });
   family.moments.push(older, newMoment);
   await router.tick({ from: NOW - 10, to: NOW });
@@ -241,8 +240,8 @@ test('a same-sender pair gets no call when the only older moment has the same se
 
 test('a same-sender moment is excluded from the enum when other candidates exist', async () => {
   const { family, router } = setup();
-  const sameSender = makeMoment({ by: sofia, savedAt: NOW - 2000 });
-  const otherSender = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const sameSender = makeMoment({ by: sofia, savedAt: NOW - WEEK - 2000 });
+  const otherSender = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW });
   family.moments.push(sameSender, otherSender, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: otherSender.id, earlier: 'match' });
@@ -254,7 +253,7 @@ test('a same-sender moment is excluded from the enum when other candidates exist
 
 test('a sensitive new moment gets no call', async () => {
   const { family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW, sensitive: true });
   family.moments.push(older, newMoment);
   await router.tick({ from: NOW - 10, to: NOW });
@@ -264,8 +263,8 @@ test('a sensitive new moment gets no call', async () => {
 
 test('a sensitive older moment is excluded from the enum', async () => {
   const { family, router } = setup();
-  const sensitiveOlder = makeMoment({ by: dimitris, savedAt: NOW - 2000, sensitive: true });
-  const validOlder = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const sensitiveOlder = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 2000, sensitive: true });
+  const validOlder = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW });
   family.moments.push(sensitiveOlder, validOlder, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: validOlder.id, earlier: 'match' });
@@ -277,8 +276,8 @@ test('a sensitive older moment is excluded from the enum', async () => {
 
 test('a moment saved outside the window gets no call', async () => {
   const { family, router } = setup();
-  const candidate = makeMoment({ by: dimitris, savedAt: NOW - 5000 });
-  const outside = makeMoment({ by: sofia, savedAt: NOW - 2000 });
+  const candidate = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 5000 });
+  const outside = makeMoment({ by: sofia, savedAt: NOW - WEEK - 2000 });
   family.moments.push(candidate, outside);
   await router.tick({ from: NOW - 1000, to: NOW });
 
@@ -312,7 +311,7 @@ test('a moment marked sensitive during the call posts nothing and leaves echo un
 
 test('a video wins over a photo', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000, photo: { id: 'photo-1' }, video: { id: 'video-1' } });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000, photo: { id: 'photo-1' }, video: { id: 'video-1' } });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW, photo: { id: 'photo-2' } });
   family.moments.push(older, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -323,7 +322,7 @@ test('a video wins over a photo', async () => {
 
 test('one picture posts a single photo or video message', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW, video: { id: 'video-only' } });
   family.moments.push(older, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -337,7 +336,7 @@ test('one picture posts a single photo or video message', async () => {
 
 test('a then-and-now post with one wordless photo names that photo by its title and quotes the other moment', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000, text: 'My first day, 1958', photo: { id: 'photo-older' } });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000, text: 'My first day, 1958', photo: { id: 'photo-older' } });
   const newMoment = makeMoment({
     by: sofia,
     savedAt: NOW,
@@ -357,7 +356,7 @@ test('a then-and-now post with one wordless photo names that photo by its title 
 
 test('no picture posts the caption as text', async () => {
   const { transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000 });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000 });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW });
   family.moments.push(older, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -368,7 +367,7 @@ test('no picture posts the caption as text', async () => {
 
 test('a matched echo sets echoPostIds on the newer moment to every message id of the album', async () => {
   const { file, transport, family, router } = setup();
-  const older = makeMoment({ by: dimitris, savedAt: NOW - 1000, photo: { id: 'photo-older' } });
+  const older = makeMoment({ by: dimitris, savedAt: NOW - WEEK - 1000, photo: { id: 'photo-older' } });
   const newMoment = makeMoment({ by: sofia, savedAt: NOW, photo: { id: 'photo-newer' } });
   family.moments.push(older, newMoment);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -385,7 +384,7 @@ test('the caption is cut at 1024 characters, the Telegram caption limit', async 
   const { transport, family, router } = setup();
   const olderBy = { id: 'u-long-1', name: 'A'.repeat(128) };
   const newerBy = { id: 'u-long-2', name: 'B'.repeat(128) };
-  const older = makeMoment({ by: olderBy, savedAt: NOW - 2000, text: 'a'.repeat(700), photo: { id: 'photo-older' } });
+  const older = makeMoment({ by: olderBy, savedAt: NOW - WEEK - 2000, text: 'a'.repeat(700), photo: { id: 'photo-older' } });
   const newer = makeMoment({ by: newerBy, savedAt: NOW, text: 'b'.repeat(700), photo: { id: 'photo-newer' } });
   family.moments.push(older, newer);
   vi.mocked(ask).mockResolvedValueOnce({ momentId: older.id, earlier: 'match' });
@@ -394,4 +393,12 @@ test('the caption is cut at 1024 characters, the Telegram caption limit', async 
   const text = transport.sent[0].message.text ?? '';
   expect(text).toHaveLength(1024);
   expect(lines.echoCaption(older, newer).startsWith(text)).toBe(true);
+});
+
+test('a candidate saved in the last 7 days is no echo, so two moments of one week never post a then-and-now album', async () => {
+  const { transport, family, router } = setup();
+  family.moments.push(makeMoment({ by: dimitris, savedAt: NOW - WEEK + 1 }), makeMoment({ by: sofia, savedAt: NOW }));
+  await router.tick({ from: NOW - 10, to: NOW });
+  expect(ask).not.toHaveBeenCalled();
+  expect(transport.sent).toEqual([]);
 });

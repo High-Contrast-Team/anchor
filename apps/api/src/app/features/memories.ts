@@ -60,16 +60,16 @@ function collectionOf(family: Family, picked: Moment, asked?: Moment[]): { momen
 
 const CAPTION_SCHEMA = { type: 'object', properties: { caption: { type: 'string' } }, required: ['caption'] };
 
-// section 4.16: the model writes a warm caption from the words of each sharer and each story, and the fixed caption covers a failed call or a caption
-// with a number, a name, or a quote that the moments do not hold
-async function captionFor(label: string, tag: string, moments: Moment[]): Promise<string> {
+// section 4.16: the model writes a warm caption from the words of each sharer and each story; undefined means a failed call or a caption with a
+// number, a name, or a quote that the moments do not hold, so the caller falls back to a fixed caption
+export async function captionFor(label: string, moments: Moment[], tag?: string): Promise<string | undefined> {
   const facts = moments.map((moment) => {
     const stories = moment.stories.map((story) => `${story.by.name}: «${cut(story.text, 200)}»`).join(' ');
     return `- ${lines.sharedBy(moment)} (${dateOf(moment)})${stories ? ` Stories: ${stories}` : ''}`;
   });
   const prompt = [
     "You are Anchor, the keeper of this family's photos and stories. You are not a person.",
-    `Write the caption of a photo album that Anchor posts in the family group with the label "${label}": ${moments.length} family moments about ${tag}.`,
+    `Write the caption of a photo album that Anchor sends to the family with the label "${label}": ${moments.length} family moments${tag ? ` about ${tag}` : ''}.`,
     ...facts,
     'Write one or two short sentences in plain, warm English, at most 160 characters, the way a family member captions an album. Name who shared the moments.',
     'You may quote a few words of a sharer or of a story, word for word, in «».',
@@ -79,12 +79,17 @@ async function captionFor(label: string, tag: string, moments: Moment[]): Promis
   try {
     const answer = await ask<{ caption?: unknown }>(prompt, CAPTION_SCHEMA, { fast: true });
     const caption = cut(valid.text(answer?.caption), 600);
-    if (caption && grounded(caption, [label, tag, String(moments.length), ...facts])) return `${caption}\n${lines.collectionReply}`;
+    if (caption && grounded(caption, [label, tag ?? '', String(moments.length), ...facts])) return caption;
   } catch (error) {
     logger.warn(`the collection caption call failed: ${error}`);
   }
-  return lines.collectionCaption(label, tag, moments);
+  return undefined;
 }
+
+const groupCaption = async (label: string, tag: string, moments: Moment[]) => {
+  const caption = await captionFor(label, moments, tag);
+  return caption ? `${caption}\n${lines.collectionReply}` : lines.collectionCaption(label, tag, moments);
+};
 
 async function post(family: Family, moment: Moment, label: string, keys: string[], ctx: Context, asked?: Moment[]) {
   moment.lookbacks.push(...keys);
@@ -92,7 +97,7 @@ async function post(family: Family, moment: Moment, label: string, keys: string[
   family.lastShown = collection.map((item) => item.id);
   const message =
     collection.length > 1
-      ? { album: collection.flatMap((item) => pictureOf(item) ?? []), text: await captionFor(label, tag, collection) }
+      ? { album: collection.flatMap((item) => pictureOf(item) ?? []), text: await groupCaption(label, tag, collection) }
       : { ...pictureOf(moment), text: lines.memoryCaption(label, moment) };
   try {
     const sent = await ctx.transport(family.id).send(family.chatId, message);

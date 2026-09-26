@@ -12,7 +12,7 @@ import { openStore } from '../../core/store';
 import type { Context, Family, Incoming, Moment } from '../../core/types';
 import { ask } from '../../model/model';
 import { memories } from '../memories';
-import { bundles, capture, forget } from './capture';
+import { bundles, capture, flush, forget } from './capture';
 import { BUNDLE_GAP_MS } from './filter';
 
 vi.mock('../../model/model', async (importOriginal) => ({
@@ -27,6 +27,7 @@ let transport: FakeTransport;
 let ctx: Context;
 let family: Family;
 let messageSeq = 0;
+const store = () => ctx.store;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -720,4 +721,21 @@ test('forget.handle and capture.handle return false when the router found no fam
 test('capture leaves a group button tap to the later features', async () => {
   expect(await capture.handle(event({ button: 'shr:yes:abcd1234' }), family, ctx)).toBe(false);
   expect(family.counters).toEqual({});
+});
+
+test('flush closes every open bundle of the family at once, and waits for a bundle that the tick is already closing', async () => {
+  let answer: (value: unknown) => void = () => undefined;
+  (ask as Mock).mockReturnValueOnce(new Promise((resolve) => (answer = resolve))).mockResolvedValue(classification);
+  transport.files.set('photo-1', { data: Buffer.from('x'), mimeType: 'image/jpeg' });
+  await capture.handle(event({ text: 'Maria on her first day', photo: { id: 'photo-1' } }), family, ctx);
+  const closing = tick();
+  await capture.handle(event({ sender: { id: 'eleni', name: 'Eleni' }, text: 'Lunch at grandma’s on Sunday with the cousins' }), family, ctx);
+  const other = store().addFamily('-200', '-200');
+  bundles.push({ family: other, sender: { id: 'x', name: 'X' }, events: [event({ text: 'another family' })] });
+
+  const flushed = flush(family, ctx);
+  answer(classification);
+  await Promise.all([flushed, closing]);
+  expect(family.moments.map(({ by }) => by.name).sort()).toEqual(['Eleni', 'Sofia']);
+  expect(bundles.map((bundle) => bundle.family)).toEqual([other]);
 });

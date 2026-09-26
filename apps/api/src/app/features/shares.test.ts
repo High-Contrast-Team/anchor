@@ -163,7 +163,7 @@ test('"Yes, send it" delivers the moment as an invitation to each recipient and 
   const eleniMessages = transport.sent.filter(({ chatId }) => chatId === '8');
   expect(nikosMessages).toHaveLength(2);
   expect(nikosMessages[0].message.photo).toEqual({ id: 'photo-57' });
-  expect(nikosMessages[1].message.voice).toBeDefined();
+  expect(nikosMessages[1].message.text).toBe(lines.remindYou);
   expect(eleniMessages).toHaveLength(2);
   expect(family.offers).toEqual([]);
   expect(transport.edits).toEqual([{ chatId: '-100', messageId: transport.sent[0].messageId, change: { text: lines.shareSent(['Nikos', 'Eleni']), onlyFor: '1' } }]);

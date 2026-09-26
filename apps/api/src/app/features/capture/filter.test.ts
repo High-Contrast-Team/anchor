@@ -59,6 +59,11 @@ test('isClosed waits 3 seconds after an album message for the rest of the album,
   expect(isClosed(album, 3000)).toBe(true);
 });
 
+test('isClosed is true at once for a voice note without a picture, so its ❤ lands within seconds', () => {
+  expect(isClosed(bundle([event({ voice: { id: 'a1' } })]), 0)).toBe(true);
+  expect(isClosed(bundle([event({ text: 'Listen to this' }), event({ voice: { id: 'a1' } })]), 0)).toBe(true);
+});
+
 test('isClosed is true at once for a captioned photo, and for a captioned video', () => {
   expect(isClosed(bundle([event({ text: 'Maria', photo: { id: 'p1' } })]), 0)).toBe(true);
   expect(isClosed(bundle([event({ text: 'Maria', video: { id: 'v1' } })]), 0)).toBe(true);
