@@ -1,0 +1,189 @@
+{
+  "generatedAt": "2026-09-26",
+  "commit": "021ec67747c5ab2aab1fa024781bb9d19429278a",
+  "standard": "WCAG 2.1 Level A and AA",
+  "tool": "axe-core 4.13.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  "baseUrl": "http://127.0.0.1:4321",
+  "server": "astro dev",
+  "gate": {
+    "command": "pnpm a11y:web",
+    "script": "apps/web/scripts/a11y-check.mjs",
+    "result": "pass",
+    "summary": "10 routes × 2 consent states — 0 violations",
+    "note": "The gate ignores axe incomplete results, does not enable html.a11y-contrast, and does not walk the /app demo past first paint."
+  },
+  "findings": [
+    {
+      "id": "prose-primary-button-contrast",
+      "wcag": "1.4.3 Contrast (Minimum)",
+      "level": "AA",
+      "impact": "serious",
+      "axe": "incomplete",
+      "gateFails": false,
+      "ratio": 1,
+      "required": 4.5,
+      "foreground": "#443dff",
+      "background": "#443dff",
+      "pages": [
+        {
+          "route": "/how-it-works",
+          "html": "<a class=\"btn btn-primary\" href=\"/family\">Get started</a>"
+        },
+        {
+          "route": "/404",
+          "html": "<a class=\"btn btn-primary\" href=\"/\">Back to Anchor</a>"
+        }
+      ],
+      "cause": ".prose a in apps/web/src/styles/tokens.css overrides .btn-primary color and font-weight.",
+      "laterFix": "Set color and font-weight on .prose a.btn so primary labels stay hsl(var(--background))."
+    },
+    {
+      "id": "high-contrast-theme",
+      "wcag": "1.4.3 Contrast (Minimum)",
+      "level": "AA",
+      "impact": "serious",
+      "axe": "violation",
+      "gateFails": false,
+      "condition": "html.a11y-contrast from anchor-a11y-prefs-v1 highContrast:true",
+      "routesWithViolations": [
+        "/",
+        "/how-it-works",
+        "/app",
+        "/family",
+        "/my-data",
+        "/privacy",
+        "/terms",
+        "/cookies",
+        "/sitemap",
+        "/404"
+      ],
+      "pairs": [
+        {
+          "role": "links",
+          "foreground": "#443dff",
+          "background": "#050316",
+          "ratio": 3.25,
+          "required": 4.5,
+          "when": "default text size, panel closed, homepage 21 nodes"
+        },
+        {
+          "role": "primary buttons",
+          "foreground": "#050316",
+          "background": "#443dff",
+          "ratio": 3.25,
+          "required": 4.5
+        },
+        {
+          "role": "demo progress chips",
+          "route": "/app",
+          "selector": ".mvp-rail li",
+          "foreground": "#f3f2fe",
+          "background": "#dddbff",
+          "ratio": 1.21,
+          "required": 4.5,
+          "when": "text scale 150%"
+        },
+        {
+          "role": "secondary button",
+          "route": "/family",
+          "html": "<button class=\"btn btn-secondary\" type=\"button\">Sign in</button>",
+          "foreground": "#fbfbfe",
+          "background": "#dddbff",
+          "ratio": 1.29,
+          "required": 4.5,
+          "when": "text scale 150%"
+        },
+        {
+          "role": "text size buttons, inactive",
+          "selector": ".a11y-widget-scale button",
+          "foreground": "#fbfbfe",
+          "background": "#dddbff",
+          "ratio": 1.29,
+          "required": 4.5,
+          "when": "panel open, text scale 150%"
+        },
+        {
+          "role": "text size button, pressed",
+          "selector": ".a11y-widget-scale button.is-active",
+          "foreground": "#050316",
+          "background": "#443dff",
+          "ratio": 3.25,
+          "required": 4.5,
+          "when": "panel open, text scale 150%"
+        }
+      ],
+      "nodeCountsAt150WithPanelOpen": {
+        "/": 16,
+        "/app": 26,
+        "/family": 18,
+        "/how-it-works": 18
+      },
+      "cause": "html.a11y-contrast keeps --primary and --accent light while swapping page background and text. Link color uses --primary. Button label color uses the dark --background. Chips and secondary surfaces keep light --soft-bg under light text.",
+      "laterFix": "Assign high-contrast foreground and background pairs that each clear 4.5:1."
+    },
+    {
+      "id": "demo-after-sample-line",
+      "route": "/app",
+      "theme": "default",
+      "gateFails": false,
+      "path": ["Send the photo", "Yes, I’ll take part", "A little later — bring it back", "Use a sample line"],
+      "issues": [
+        {
+          "axe": "color-contrast",
+          "wcag": "1.4.3",
+          "impact": "serious",
+          "html": "<span class=\"voice-tag\">Voice note</span>",
+          "foreground": "#443dff",
+          "background": "#cbc8ff",
+          "ratio": 3.94,
+          "required": 4.5,
+          "font": "12.48px bold",
+          "cause": ".voice-tag uses color: var(--brand) on a translucent brand wash."
+        },
+        {
+          "axe": "scrollable-region-focusable",
+          "wcag": "2.1.1",
+          "impact": "serious",
+          "html": "<div class=\"chat-log\" role=\"log\">",
+          "pane": "private",
+          "scrollHeight": 978,
+          "clientHeight": 374,
+          "tabIndex": -1,
+          "overflowY": "auto",
+          "note": "The group chat-log on this path does not overflow (302/302) and was not flagged."
+        }
+      ]
+    },
+    {
+      "id": "design-studies",
+      "gateFails": false,
+      "note": "Not listed on the sitemap.",
+      "routes": [
+        {
+          "route": "/designs/ink",
+          "violations": 3,
+          "detail": ".ink-action-index #787878 on #ffffff, 4.41:1, opacity 0.55, aria-hidden but still visible."
+        },
+        {
+          "route": "/designs/linen",
+          "violations": 2,
+          "detail": ".linen-support and .linen-link-text are #7d7970 on #f4f0e8, 3.81:1."
+        },
+        { "route": "/designs/quiet", "violations": 0 },
+        { "route": "/designs/mist", "violations": 0 },
+        { "route": "/designs/slate", "violations": 0 }
+      ]
+    }
+  ],
+  "notConfirmed": [
+    {
+      "id": "app-consent-banner-obscured",
+      "axe": "incomplete",
+      "route": "/app",
+      "mode": "consent-open",
+      "targets": ["#consent-title", "#consent-body"],
+      "note": "Banner is position:fixed at z-index 50. Hit-tests landed on the banner text. The composer sits underneath until consent is dismissed."
+    }
+  ]
+}
