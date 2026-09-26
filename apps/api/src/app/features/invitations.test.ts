@@ -277,12 +277,13 @@ test('every started member with family moments gets the memory, and one caption 
   expect(eleniMember.invitation?.momentId).toBe('m1');
 });
 
-test('a member who blocked Anchor stops getting memories, and the return still counts', async () => {
+test('a member who blocked Anchor stops getting memories, the memory closes, and the return still counts', async () => {
   vi.spyOn(transport, 'send').mockRejectedValue(new Blocked());
   add();
   await tickAt(at(25, 11));
   const record = saved();
   expect(record?.members[0]).toMatchObject({ started: false, lastInvitationDay: dayIndex(at(25, 11)) });
+  expect(record?.members[0].invitation).toBeUndefined();
   expect(record?.moments[0].returns['7'].count).toBe(1);
 });
 
@@ -328,6 +329,18 @@ test('"No, thanks" on the call question removes its buttons, and a memory of onl
   const sent = transport.sent.length;
   await tap(`inv:say1:${own}`, transport.sent.at(-1)?.messageId ?? '');
   expect(messages().slice(sent)).toEqual([['-100', { text: 'Nikos: «That made me smile 😊»', replyTo: '57' }]]);
+});
+
+test('"Yes, ask" when no other sharer is left removes the buttons and posts nothing', async () => {
+  add({ by: eleni });
+  add({ id: 'own', by: { id: '7', name: 'Nikos' }, savedAt: at(25, 9) });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  await tap(`inv:say0:${id}`, transport.sent[1].messageId);
+  family.moments[0].sensitive = true;
+  await tap(`inv:call:${id}`, transport.sent[3].messageId);
+  expect(edits().at(-1)).toEqual(['7', transport.sent[3].messageId, { buttons: [] }]);
+  expect(transport.sent).toHaveLength(4);
 });
 
 test('"Later, please" collapses the buttons in place and keeps the memory open for a story', async () => {

@@ -402,3 +402,14 @@ test('a candidate saved in the last 7 days is no echo, so two moments of one wee
   expect(ask).not.toHaveBeenCalled();
   expect(transport.sent).toEqual([]);
 });
+
+test('an old photo shared this week still echoes a recent moment, because the events lie decades apart', async () => {
+  const { transport, family, router } = setup();
+  const maria = makeMoment({ by: dimitris, savedAt: NOW - 3600_000, eventDate: '2026-09-25', photo: { id: 'photo-maria' } });
+  const old = makeMoment({ by: sofia, savedAt: NOW, eventDate: '1958-09-15', photo: { id: 'photo-1958' } });
+  family.moments.push(maria, old);
+  vi.mocked(ask).mockResolvedValueOnce({ momentId: maria.id, earlier: 'new' });
+  await router.tick({ from: NOW - 10, to: NOW });
+  expect(old.echo).toBe(maria.id);
+  expect(transport.sent[0].message.album).toEqual([{ photo: { id: 'photo-1958' } }, { photo: { id: 'photo-maria' } }]);
+});

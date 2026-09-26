@@ -89,9 +89,15 @@ async function deliver(family: Family, member: Member, moments: Moment[], ctx: C
   const spokenHead = moments.length > 1 ? head : lines.spokenMoment(one);
   const pictures = moments.flatMap((moment) => pictureOf(moment) ?? []);
   if (pictures.length) await tell(family, member, { ...(pictures.length > 1 ? { album: pictures } : pictures[0]), text: head }, ctx);
-  if (!member.started || member.invitation !== invitation) return;
   const text = pictures.length ? lines.remindYou : `${head}\n${lines.remindYou}`;
-  await tell(family, member, { text, buttons: memoryButtons(invitation.id) }, ctx, `${spokenHead}\n${lines.remindYou}`);
+  if (member.started && member.invitation === invitation) {
+    await tell(family, member, { text, buttons: memoryButtons(invitation.id) }, ctx, `${spokenHead}\n${lines.remindYou}`);
+  }
+  // tell turned started off for a member who blocked Anchor, so the memory closes
+  if (!member.started && member.invitation === invitation) {
+    member.invitation = undefined;
+    ctx.store.save();
+  }
 }
 
 // v2, section 4.5: a share offer and "Send me a moment" send a memory of one moment, and replace the open memory
@@ -157,7 +163,9 @@ async function tap(action: string, event: Incoming, invitation: Invitation, fami
       { label: lines.buttons.noThanks, data: `inv:nocall:${invitation.id}` },
     ];
     await tell(family, member, { text: lines.askCall(sharer.name), buttons }, ctx);
-  } else if (action === 'call' && sharer && !invitation.askedCall) {
+  } else if (action === 'call' && !sharer) {
+    await change([]);
+  } else if (action === 'call' && !invitation.askedCall) {
     invitation.askedCall = true;
     ctx.store.save();
     await done(lines.done.askedCall(sharer.name));
@@ -207,7 +215,7 @@ export async function shareStory(family: Family, person: Person, moment: Moment,
     { text: lines.storyAdded(person.name, moment.by.name, story.text), replyTo: moment.messageIds[0], mention: moment.by },
     ctx,
   );
-  if (added) await react(ctx, family, family.chatId, added.messageId, '❤', true);
+  if (added) await react(ctx, family, family.chatId, added.messageId, '\u2764', true);
   const spoken = story.voice ? await announce(family, { voice: story.voice }, ctx) : undefined;
   if (family.moments.includes(moment)) {
     moment.stories.push({
