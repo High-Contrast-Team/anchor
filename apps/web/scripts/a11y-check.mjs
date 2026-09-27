@@ -224,6 +224,40 @@ function renderMarkdown(report) {
     }
   }
 
+  const contrastTheme = report.highContrast || [];
+  const contrastThemeNodes = contrastTheme.reduce((sum, run) => sum + (run.nodes || 0), 0);
+  lines.push('## High contrast theme', '');
+  lines.push(
+    'Turning on Accessibility → High contrast sets `html.a11y-contrast` (`anchor-a11y-prefs-v1`). axe then reports real `color-contrast` violations. This theme is outside the default gate, which still exits 0.',
+    '',
+    `Nodes failing: ${contrastThemeNodes}.`,
+    '',
+    'The theme keeps primary `#443dff` on a near-black background (`#050316`), about 3.25:1. Normal text needs 4.5:1. Secondary buttons and several `/app` chips drop to about 1.2:1 because light text sits on the accent fill.',
+    '',
+    '| Route | Failing nodes |',
+    '| --- | ---: |',
+  );
+  for (const run of contrastTheme) {
+    lines.push(`| ${escapeCell(run.route)} | ${run.nodes} |`);
+  }
+  lines.push('');
+  const grouped = new Map();
+  for (const run of contrastTheme) {
+    for (const group of run.groups || []) {
+      const key = group.summary || group.id;
+      const current = grouped.get(key) || { count: 0, routes: [], targets: group.targets || [] };
+      current.count += group.count;
+      if (!current.routes.includes(run.route)) current.routes.push(run.route);
+      grouped.set(key, current);
+    }
+  }
+  for (const [summary, group] of grouped) {
+    lines.push(
+      `- ${group.count} ${group.count === 1 ? 'node' : 'nodes'} on ${group.routes.map((route) => `\`${route}\``).join(', ')}. Example target \`${JSON.stringify(group.targets[0] || [])}\`. ${summary}`,
+    );
+    lines.push('');
+  }
+
   lines.push('## What this does not prove', '');
   lines.push(
     '- A passing automated run is not a full WCAG 2.1 conformance claim.',
@@ -239,6 +273,64 @@ function writeReport(report) {
   mkdirSync(dirname(REPORT_JSON), { recursive: true });
   writeFileSync(REPORT_JSON, `${JSON.stringify(report, null, 2)}\n`);
   writeFileSync(REPORT_MD, renderMarkdown(report));
+}
+
+async function enableHighContrast(page) {
+  await page.addInitScript(() => {
+    localStorage.setItem(
+      'anchor-a11y-prefs-v1',
+      JSON.stringify({
+        textScale: 100,
+        spacing: false,
+        highContrast: true,
+        underlineLinks: false,
+        readableFont: false,
+        reduceMotion: false,
+        bigCursor: false,
+        grayscale: false,
+        hideImages: false,
+      }),
+    );
+  });
+}
+
+async function auditHighContrast(browser, route) {
+  const url = `${BASE}${route === '/404' ? '/this-page-does-not-exist-a11y' : route}`;
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await enableHighContrast(page);
+  const response = await page.goto(url, { waitUntil: 'load' });
+  const status = response?.status() ?? 0;
+  await page.waitForTimeout(400);
+  await page.evaluate(axeSource);
+  const groups = await page.evaluate(async (tags) => {
+    const results = await globalThis.axe.run(document, { runOnly: { type: 'tag', values: tags } });
+    const map = new Map();
+    for (const rule of results.violations) {
+      for (const node of rule.nodes) {
+        const summary = (node.failureSummary || rule.help).replace(/\s+/g, ' ').trim();
+        const current = map.get(summary) || {
+          id: rule.id,
+          impact: rule.impact,
+          summary,
+          count: 0,
+          targets: [],
+        };
+        current.count += 1;
+        if (current.targets.length < 3) current.targets.push(node.target);
+        map.set(summary, current);
+      }
+    }
+    return [...map.values()];
+  }, TAGS);
+  await context.close();
+  return {
+    route,
+    url,
+    status,
+    nodes: groups.reduce((sum, group) => sum + group.count, 0),
+    groups,
+  };
 }
 
 async function audit(browser, route, mode) {
@@ -297,6 +389,11 @@ async function main() {
     runs.push(await audit(browser, route, 'consent-dismissed'));
   }
 
+  const highContrast = [];
+  for (const route of ROUTES) {
+    highContrast.push(await auditHighContrast(browser, route));
+  }
+
   await browser.close();
 
   const failures = runs.filter((run) => run.error || (run.violations || []).length);
@@ -310,6 +407,7 @@ async function main() {
     tags: TAGS,
     passed: failures.length === 0,
     contrastGapCount,
+    highContrast,
     runs,
   };
   writeReport(report);

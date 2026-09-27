@@ -6,8 +6,8 @@ axe-core does not cover every WCAG 2.1 success criterion. Keyboard order, meanin
 
 | | |
 | --- | --- |
-| Generated | 2026-09-27T08:43:37.432Z |
-| Commit | `e2edac5` |
+| Generated | 2026-09-27T08:46:16.316Z |
+| Commit | `d9c4813` |
 | Base URL | http://localhost:4321 |
 | axe-core | 4.13.0 |
 | Axe result | Pass (0 violations) |
@@ -199,6 +199,51 @@ Fix any of the following:
 ```html
 <a class="btn btn-primary" href="/">Back to Anchor</a>
 ```
+
+## High contrast theme
+
+Turning on Accessibility → High contrast sets `html.a11y-contrast` (`anchor-a11y-prefs-v1`). axe then reports real `color-contrast` violations. This theme is outside the default gate, which still exits 0.
+
+Nodes failing: 214.
+
+The theme keeps primary `#443dff` on a near-black background (`#050316`), about 3.25:1. Normal text needs 4.5:1. Secondary buttons and several `/app` chips drop to about 1.2:1 because light text sits on the accent fill.
+
+| Route | Failing nodes |
+| --- | ---: |
+| / | 25 |
+| /how-it-works | 19 |
+| /app | 29 |
+| /family | 20 |
+| /my-data | 18 |
+| /privacy | 23 |
+| /terms | 18 |
+| /cookies | 18 |
+| /sitemap | 26 |
+| /404 | 18 |
+
+- 150 nodes on `/`, `/how-it-works`, `/app`, `/family`, `/my-data`, `/privacy`, `/terms`, `/cookies`, `/sitemap`, `/404`. Example target `[".slate-nav > a[href$=\"how-it-works\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 11.3pt (15px), font weight: normal). Expected contrast ratio of 4.5:1
+
+- 15 nodes on `/`, `/how-it-works`, `/app`, `/family`, `/my-data`, `/privacy`, `/terms`, `/cookies`, `/sitemap`, `/404`. Example target `[".slate-hero-inner > .slate-actions > .slate-btn.slate-btn-primary[href$=\"family\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #050316, background color: #443dff, font size: 11.3pt (15px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 4 nodes on `/`. Example target `[".slate-hero-inner > .slate-actions > .slate-text-link[href$=\"app\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 11.3pt (15px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 2 nodes on `/`. Example target `[".slate-link[href$=\"my-data\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 13.5pt (18px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 11 nodes on `/`, `/how-it-works`, `/app`, `/family`, `/my-data`, `/privacy`, `/terms`, `/cookies`, `/sitemap`, `/404`. Example target `[".btn-secondary"]`. Fix any of the following: Element has insufficient color contrast of 1.29 (foreground color: #fbfbfe, background color: #dddbff, font size: 11.3pt (15px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 16 nodes on `/how-it-works`, `/family`, `/privacy`, `/sitemap`. Example target `["p:nth-child(12) > a[href$=\"my-data\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 13.5pt (18px), font weight: normal). Expected contrast ratio of 4.5:1
+
+- 2 nodes on `/how-it-works`, `/404`. Example target `[".btn-primary.btn[href$=\"family\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #050316, background color: #443dff, font size: 11.3pt (15px), font weight: normal). Expected contrast ratio of 4.5:1
+
+- 6 nodes on `/app`. Example target `["li:nth-child(1) > span"]`. Fix any of the following: Element has insufficient color contrast of 1.21 (foreground color: #f3f2fe, background color: #dddbff, font size: 10.2pt (13.6px), font weight: normal). Expected contrast ratio of 4.5:1
+
+- 2 nodes on `/app`. Example target `["#group-heading"]`. Fix any of the following: Element has insufficient color contrast of 1.21 (foreground color: #f3f2fe, background color: #dddbff, font size: 9.6pt (12.8px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 2 nodes on `/app`. Example target `["#_r4R_0H1_ > .chat-log[role=\"log\"][aria-relevant=\"additions\"] > .empty"]`. Fix any of the following: Element has insufficient color contrast of 1.21 (foreground color: #f3f2fe, background color: #dddbff, font size: 11.4pt (15.2px), font weight: normal). Expected contrast ratio of 4.5:1
+
+- 1 node on `/app`. Example target `["#memory-heading"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 13.8pt (18.4px), font weight: bold). Expected contrast ratio of 4.5:1
+
+- 3 nodes on `/privacy`, `/terms`, `/cookies`. Example target `[".lede > a[href$=\"mailto:privacy@anchor.com\"]"]`. Fix any of the following: Element has insufficient color contrast of 3.25 (foreground color: #443dff, background color: #050316, font size: 15.0pt (20px), font weight: normal). Expected contrast ratio of 4.5:1
 
 ## What this does not prove
 
