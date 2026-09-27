@@ -67,6 +67,10 @@ test('the private memory lines read as the spike writes them', () => {
   expect(lines.familyReplies.map(([emoji, words]) => `${emoji} ${words}`)).toEqual(['❤️ Sending my love', '😊 That made me smile', '💛 I miss you all']);
   expect(lines.familyReply('Sofia', lines.familyReplies[2])).toBe('Sofia: «I miss you all 💛»');
   expect(lines.askCall('Eleni')).toBe('Shall I ask Eleni to call you?');
+  expect(lines.answers.map(([emoji, words]) => `${emoji} ${words}`)).toEqual(['❤️ Love you too', "😊 Can't wait", '👍 Okay']);
+  expect(lines.familySaid('Eleni', 'Calling you now, Mum ❤️')).toBe('Eleni: «Calling you now, Mum ❤️»');
+  expect(lines.familySaid('Eleni', 'a'.repeat(400))).toBe(`Eleni: «${'a'.repeat(299)}…»`);
+  expect(lines.sentTo('Eleni')).toBe('✅ Sent to Eleni');
   expect(lines.done).toEqual({
     sent: '✅ Sent to the family',
     later: '✅ Another day, then',

@@ -330,6 +330,20 @@ test('the stage flow: two posts, /fastforward 1, a private memory for every star
   expect(transport.edits.at(-1)?.change).toEqual({ buttons: [{ label: '✅ Asked Eleni to call you', data: `inv:done:${id}` }] });
   expect(toGroup().at(-1)).toEqual({ text: 'Eleni, Sofia would love a call from you 💛', mention: eleni });
 
+  // step 8: Eleni replies to the call request in the group, the reply comes back to Sofia by voice, and one tap answers Eleni
+  const request = transport.sent.filter(({ chatId, message }) => chatId === '-100' && message.mention).at(-1)?.messageId;
+  await say(eleni, { text: 'Calling you now, Mum ❤️', replyTo: request, replyToSender: { id: 'bot', name: 'Anchor' } });
+  const back = toMember(sofia).at(-1);
+  const replyId = back?.message.buttons?.[0].data?.split(':')[2];
+  expect(back?.message).toEqual({
+    text: 'Eleni: «Calling you now, Mum ❤️»',
+    voice: { wav },
+    buttons: ['❤️ Love you too', "😊 Can't wait", '👍 Okay'].map((label, index) => ({ label, data: `ans:${index}:${replyId}:${eleni.id}` })),
+  });
+  await whisper(sofia, { button: `ans:0:${replyId}:${eleni.id}`, messageId: back?.messageId });
+  expect(transport.edits.at(-1)?.change).toEqual({ buttons: [{ label: '✅ Sent to Eleni', data: 'inv:done:-' }] });
+  expect(toGroup().at(-1)).toEqual({ text: 'Sofia: «Love you too ❤️»', replyTo: replyId });
+
   // two more jumps with no new post: every member gets the memory again, and no echo and no group memory posts
   const posted = toGroup().length;
   for (let jump = 2; jump <= 3; jump++) {

@@ -314,6 +314,60 @@ test('"Reply to the family" swaps the buttons in place, a reply goes to the grou
   expect(saved()?.members[0].invitation).toMatchObject({ said: true, askedCall: true });
 });
 
+const answerButtons = (messageId: string, fromId: string) =>
+  lines.answers.map(([emoji, words], index) => ({ label: `${emoji} ${words}`, data: `ans:${index}:${messageId}:${fromId}` }));
+
+test('a group reply to a line that Anchor posted for a member reaches the member in private with three warm answers', async () => {
+  ctx.store.joinMember(family, eleni);
+  add({ by: eleni });
+  await tickAt(at(25, 11));
+  const { id } = nikos().invitation ?? { id: '' };
+  await tap(`inv:say2:${id}`, transport.sent[1].messageId);
+  await tap(`inv:call:${id}`, transport.sent[3].messageId);
+  const [line, request] = transport.sent.filter(({ chatId }) => chatId === '-100').map(({ messageId }) => messageId);
+  expect(family.spokenFor).toEqual({ [line]: '7', [request]: '7' });
+  const sent = transport.sent.length;
+
+  expect(await receive(inGroup({ sender: eleni, text: 'Calling you now, Dad ❤️', replyTo: request, messageId: '901' }))).toBe(true);
+  transport.files.set('voice-eleni', { data: Buffer.from('ogg'), mimeType: 'audio/ogg' });
+  await receive(inGroup({ sender: eleni, text: 'We miss you too', voice: { id: 'voice-eleni' }, replyTo: line, messageId: '902' }));
+  expect(messages().slice(sent)).toEqual([
+    ['7', { text: 'Eleni: «Calling you now, Dad ❤️»', buttons: answerButtons('901', '2') }],
+    ['7', { voice: { id: 'voice-eleni' }, text: 'Eleni: «We miss you too»', buttons: answerButtons('902', '2') }],
+  ]);
+});
+
+test('a reply by the member, a command, a reply to another message, or a reply for a member who stopped stays in the group', async () => {
+  ctx.store.joinMember(family, eleni);
+  family.spokenFor = { '500': '7' };
+  for (const event of [
+    inGroup({ sender: { id: '7', name: 'Nikos' }, text: 'Thank you all', replyTo: '500' }),
+    inGroup({ sender: eleni, text: '/memory', replyTo: '500' }),
+    inGroup({ sender: eleni, text: 'Anchor, show us a memory', replyTo: '500' }),
+    inGroup({ sender: eleni, text: 'Lovely', replyTo: '499' }),
+    inGroup({ sender: eleni, text: 'Lovely' }),
+  ]) {
+    expect(await receive(event)).toBe(false);
+  }
+  nikos().started = false;
+  expect(await receive(inGroup({ sender: eleni, text: 'Lovely', replyTo: '500' }))).toBe(false);
+  expect(transport.sent).toEqual([]);
+});
+
+test('a warm answer goes to the group as a reply to the family message, collapses in place, and counts once', async () => {
+  ctx.store.joinMember(family, eleni);
+  family.spokenFor = { '500': '7' };
+  await receive(inGroup({ sender: eleni, text: 'Calling you now, Dad', replyTo: '500', messageId: '901' }));
+  const passed = transport.sent[0].messageId;
+
+  await tap('ans:0:901:2', passed);
+  await tap('ans:0:901:2', passed);
+  expect(edits()).toEqual([['7', passed, { buttons: [{ label: '✅ Sent to Eleni', data: 'inv:done:-' }] }]]);
+  const posts = transport.sent.filter(({ chatId }) => chatId === '-100');
+  expect(posts.map(({ message }) => message)).toEqual([{ text: 'Nikos: «Love you too ❤️»', replyTo: '901' }]);
+  expect(family.spokenFor).toEqual({ '500': '7', [posts[0].messageId]: '7' });
+});
+
 test('"No, thanks" on the call question removes its buttons, and a memory of only own moments asks no call', async () => {
   add({ by: eleni });
   await tickAt(at(25, 11));
