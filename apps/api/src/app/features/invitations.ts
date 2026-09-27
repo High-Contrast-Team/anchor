@@ -9,10 +9,11 @@ import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Mem
 import { ask, valid } from '../model/model';
 import { react } from './capture/capture';
 import { ADDRESS, asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
-import { captionFor } from './memories';
+import { captionFor, eventTime } from './memories';
 import { nextSteps } from './members';
 
 const MAX_MOMENTS = 5;
+const YEAR_MS = 365 * 86_400_000;
 const KINDS = ['story', 'unsure', 'question', 'request', 'other'] as const;
 const REPLY_SCHEMA = {
   type: 'object',
@@ -38,9 +39,28 @@ function weekOf(family: Family, member: Member, slot: number): Moment[] {
   return (week.length ? week : shown).slice(0, MAX_MOMENTS).reverse();
 }
 
+// a photo dated a year or more before the family shared it, such as a scan of 1975
+const oldPhoto = (moment: Moment) => eventTime(moment) <= moment.savedAt - YEAR_MS;
+
+// the spike of 2026-09-27: when the week holds new moments, one older photo of the record, the one the member has seen least, leads as "then"
+function memoryOf(family: Family, member: Member, slot: number): { moments: Moment[]; label: string } {
+  const week = weekOf(family, member, slot);
+  const now = week.filter((moment) => slot - moment.savedAt <= WEEK_MS && !oldPhoto(moment));
+  const hidden = new Set(member.hidden);
+  const seen = (moment: Moment) => moment.returns[member.id]?.count ?? 0;
+  const older = (moment: Moment) => slot - moment.savedAt > WEEK_MS || oldPhoto(moment);
+  const [then] = now.length
+    ? family.moments
+        .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && pictureOf(moment) && moment.savedAt <= slot && older(moment))
+        .sort((a, b) => seen(a) - seen(b) || eventTime(a) - eventTime(b))
+    : [];
+  return then ? { moments: [then, ...now.slice(1 - MAX_MOMENTS)], label: lines.thenLabel } : { moments: week, label: lines.weekLabel };
+}
+
 // the member who shared the most moments other than this member, and the earlier sharer on a tie; the moments come oldest first
 function topSharer(moments: Moment[], member: Member): Person | undefined {
-  const others = moments.filter((moment) => moment.by.id !== member.id);
+  // an old photo is not news of this week, so it never picks whom Sofia asks for a call
+  const others = moments.filter((moment) => moment.by.id !== member.id && !oldPhoto(moment));
   const count = (id: string) => others.filter((moment) => moment.by.id === id).length;
   return others.reduce<Person | undefined>((top, moment) => (!top || count(moment.by.id) > count(top.id) ? moment.by : top), undefined);
 }
@@ -73,6 +93,8 @@ const memoryButtons = (id: string): Button[] => [
   { label: lines.buttons.tellMeMore, data: `inv:more:${id}` },
   { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
   { label: lines.buttons.notNow, data: `inv:later:${id}` },
+  // the user's call: a fourth button, so a member can ask for a call without the daily 11:00 ring; intents answers the tap
+  { label: lines.buttons.callMe, data: 'nxt:callMe' },
 ];
 
 const replyButtons = (id: string): Button[] =>
@@ -82,7 +104,7 @@ const isOpen = (family: Family, member: Member, invitation: Invitation, moment: 
   member.invitation === invitation && family.moments.includes(moment) && !moment.sensitive;
 
 // the album or the picture carries the caption, and one message with the buttons follows, because an album carries no buttons
-async function deliver(family: Family, member: Member, moments: Moment[], ctx: Context, caption?: string) {
+async function deliver(family: Family, member: Member, moments: Moment[], ctx: Context, weekHead?: string) {
   const sharer = topSharer(moments, member);
   const lead = [...moments].reverse().find((moment) => moment.by.id === sharer?.id) ?? moments[moments.length - 1];
   const invitation: Invitation = { id: shortId(), momentId: lead.id, momentIds: moments.map((moment) => moment.id), shareAsked: false, helped: false };
@@ -92,7 +114,7 @@ async function deliver(family: Family, member: Member, moments: Moment[], ctx: C
   ctx.store.save();
 
   const [one] = moments;
-  const head = moments.length > 1 ? lines.weekMemory(caption ?? lines.weekShared(moments)) : lines.sharedBy(one);
+  const head = moments.length > 1 ? (weekHead ?? lines.weekMemory(lines.weekShared(moments))) : lines.sharedBy(one);
   const spokenHead = moments.length > 1 ? head : lines.spokenMoment(one);
   const pictures = moments.flatMap((moment) => pictureOf(moment) ?? []);
   if (pictures.length) await tell(family, member, { ...(pictures.length > 1 ? { album: pictures } : pictures[0]), text: head }, ctx);
@@ -381,9 +403,9 @@ export const invitations: Feature = {
     if (slot === undefined) return;
     const day = dayIndex(slot);
     const captions = new Map<string, Promise<string | undefined>>();
-    const caption = (moments: Moment[]) => {
+    const caption = (moments: Moment[], label: string) => {
       const key = moments.map((moment) => moment.id).join();
-      if (!captions.has(key)) captions.set(key, captionFor(lines.weekLabel, moments));
+      if (!captions.has(key)) captions.set(key, captionFor(label, moments));
       return captions.get(key);
     };
     const due = family.members.filter((member) => member.started && member.choices.moments && member.lastInvitationDay !== day);
@@ -391,9 +413,10 @@ export const invitations: Feature = {
       due.map(async (member) => {
         member.invitation = undefined;
         member.lastInvitationDay = day;
-        const moments = weekOf(family, member, slot);
+        const { moments, label } = memoryOf(family, member, slot);
         if (!moments.length) return ctx.store.save();
-        await deliver(family, member, moments, ctx, moments.length > 1 ? await caption(moments) : undefined);
+        const head = moments.length > 1 ? lines.weekMemory((await caption(moments, label)) ?? lines.weekShared(moments), label) : undefined;
+        await deliver(family, member, moments, ctx, head);
       }),
     );
   },

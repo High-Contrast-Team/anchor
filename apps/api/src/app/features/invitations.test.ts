@@ -38,6 +38,7 @@ const memoryButtons = (id: string) => [
   { label: lines.buttons.tellMeMore, data: `inv:more:${id}` },
   { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
   { label: lines.buttons.notNow, data: `inv:later:${id}` },
+  { label: lines.buttons.callMe, data: 'nxt:callMe' },
 ];
 const replyButtons = (id: string) => lines.familyReplies.map(([emoji, words], index) => ({ label: `${emoji} ${words}`, data: `inv:say${index}:${id}` }));
 const doneButton = (id: string, label: string) => [{ label, data: `inv:done:${id}` }];
@@ -199,9 +200,38 @@ test('a moment with a video goes out as the video, and a moment with no picture 
   expect(transport.sent.slice(2).map(({ message }) => message.text)).toEqual([`${sofiaSaid}\n${lines.remindYou}`]);
 });
 
+test('an older photo of the record leads the memory as "then", the one the member has seen least, and the caption says then and now', async () => {
+  vi.mocked(ask).mockResolvedValue({ caption: 'Sofia and Eleni shared old and new photos.' });
+  add({ id: 'beach', savedAt: at(10, 12), photo: { id: 'photo-beach' }, returns: { '7': { count: 2 } } });
+  add({ id: 'wedding', savedAt: at(12, 12), photo: { id: 'photo-wedding' } });
+  add({ id: 'scan', by: eleni, savedAt: at(25, 9), eventDate: '1975-08-01', photo: { id: 'photo-1975' }, returns: { '7': { count: 1 } } });
+  add({ id: 'm2', by: eleni, savedAt: at(24, 12), photo: { id: 'photo-99' } });
+  add();
+  await tickAt(at(25, 11));
+
+  expect(vi.mocked(ask).mock.calls[0][0]).toContain('with the label "Then and now in the family": 3 family moments.');
+  const album = ['photo-wedding', 'photo-99', 'photo-57'].map((photo) => ({ photo: { id: photo } }));
+  expect(transport.sent[0].message).toEqual({ album, text: 'Then and now in the family 💛\nSofia and Eleni shared old and new photos.' });
+  expect(nikos().invitation).toMatchObject({ momentId: 'm1', momentIds: ['wedding', 'm2', 'm1'] });
+});
+
+test('an old photo shared this week can be the "then", and it does not count for the call question', async () => {
+  const alexandros = { id: '3', name: 'Alexandros' };
+  add({ id: 'm2', by: eleni, savedAt: at(24, 12), photo: { id: 'photo-99' } });
+  add();
+  add({ id: 'scan', by: alexandros, savedAt: at(25, 9), eventDate: '1975-08-01', photo: { id: 'photo-1975' } });
+  add({ id: 'castle', by: alexandros, savedAt: at(25, 10), photo: { id: 'photo-castle' } });
+  await tickAt(at(25, 11));
+
+  expect(transport.sent[0].message.album?.map((item) => ('photo' in item ? item.photo.id : ''))).toEqual(['photo-1975', 'photo-99', 'photo-57', 'photo-castle']);
+  expect(transport.sent[0].message.text).toBe('Then and now in the family 💛\nAlexandros, Eleni, and Sofia shared 4 moments.');
+  // Eleni, Sofia, and Alexandros tie with one moment of this week each, and Eleni shared first
+  expect(nikos().invitation?.momentId).toBe('m2');
+});
+
 test('the memory of the week holds up to 5 newest moments, the own ones too, and the photos form an album oldest first', async () => {
   vi.mocked(ask).mockResolvedValue({ caption: 'Sofia and Eleni shared school and lunch.' });
-  add({ id: 'old', savedAt: at(17, 12), photo: { id: 'photo-old' } });
+  add({ id: 'old', savedAt: at(17, 12), photo: undefined });
   add({ id: 'quiet', sensitive: true, savedAt: at(24, 12) });
   add({ id: 'after', savedAt: at(25, 11, 1) });
   add({ id: 'text', by: eleni, photo: undefined, text: 'Lunch at grandma’s on Sunday', savedAt: at(20, 12) });
@@ -431,10 +461,10 @@ test('"Tell me more" shows a wait at once, names each moment, plays the voice no
     ['7', { voice: { id: 'voice-99' } }],
     ['7', { voice: { id: 'voice-57' }, buttons: next }],
   ]);
-  const [, reply, later] = memoryButtons(id);
+  const [, reply, later, callMe] = memoryButtons(id);
   expect(edits()).toEqual([
-    ['7', memory, { buttons: [{ label: '⏳ One moment…', data: `inv:done:${id}` }, reply, later] }],
-    ['7', memory, { buttons: [reply, later] }],
+    ['7', memory, { buttons: [{ label: '⏳ One moment…', data: `inv:done:${id}` }, reply, later, callMe] }],
+    ['7', memory, { buttons: [reply, later, callMe] }],
   ]);
 });
 
