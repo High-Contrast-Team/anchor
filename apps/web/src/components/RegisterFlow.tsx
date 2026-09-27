@@ -265,14 +265,15 @@ export function RegisterFlow() {
 
                 <h3>Where data is stored</h3>
                 <p>
-                  Account, consent, and the family you create on the website are stored in <strong>Neon Postgres</strong>{' '}
-                  in <code>eu-central-1</code>. Files you upload are stored in <strong>Vercel Blob</strong> (
-                  <code>fra1</code>). The family record from connected chats lives with the bot on{' '}
+                  Account, consent, website family membership, and file metadata are stored in{' '}
+                  <strong>Neon Postgres</strong> in <code>eu-central-1</code>. Files you upload are stored in{' '}
+                  <strong>Vercel Blob</strong> (<code>fra1</code>). The family record from connected chats lives with the
+                  bot on{' '}
                   <strong>
                     Google Cloud Run in <code>europe-west1</code>
                   </strong>
-                  , stored as a file in <strong>Cloud Storage</strong> in the same region. The website is hosted on
-                  Vercel.
+                  , stored as a file in <strong>Cloud Storage</strong> in the same region. The website and Anchor API are
+                  hosted on Vercel.
                 </p>
 
                 <h3>Chat connection</h3>
@@ -293,7 +294,7 @@ export function RegisterFlow() {
 
                 <h3>Processors</h3>
                 <ul>
-                  <li>Neon — account, consent, and website family records (<code>eu-central-1</code>).</li>
+                  <li>Neon Postgres (<code>eu-central-1</code>) — accounts, consent, website families, and file metadata.</li>
                   <li>Vercel Blob — files you upload (<code>fra1</code>).</li>
                   <li>
                     Connected messaging providers — group chat, private messages, and connection login (named under
@@ -303,7 +304,7 @@ export function RegisterFlow() {
                     Google Cloud Run (<code>europe-west1</code>) — the Anchor bot.
                   </li>
                   <li>Google Cloud Storage — the family record file.</li>
-                  <li>Vercel — the website.</li>
+                  <li>Vercel — the website and the Anchor API.</li>
                   <li>
                     OpenAI API — moment extraction, transcription, photo description, and speech (may process outside the
                     EU).

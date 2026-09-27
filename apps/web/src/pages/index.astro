@@ -73,9 +73,10 @@ const description =
   <section class="slate-section" aria-labelledby="where-data-lives">
     <h2 id="where-data-lives" class="slate-heading">Where data lives</h2>
     <p class="slate-prose">
-      You register with email first. Account data sits in Neon in the EU. The family record from connected chats sits with
-      the bot on Cloud Run in the EU (<code>europe-west1</code>), in Cloud Storage. Prompts sent to OpenAI may leave the EU
-      when the model runs. More detail is on the <a class="slate-link" href="/privacy">privacy page</a>.
+      You register with email first. Account data sits in Neon Postgres in the EU (<code>eu-central-1</code>). The family
+      record from connected chats sits with the bot on Cloud Run in the EU (<code>europe-west1</code>), in Cloud Storage.
+      The website and API run on Vercel. Prompts sent to OpenAI may leave the EU when the model runs. More detail is on
+      the <a class="slate-link" href="/privacy">privacy page</a>.
     </p>
   </section>
 
