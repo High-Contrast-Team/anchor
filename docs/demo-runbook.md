@@ -46,7 +46,7 @@ Caution: a staged text must name no future action with a time, or a reminder off
 
 ## The script
 
-Each beat names the action, the spoken lines, and what the audience sees. The times include about 5 seconds of model latency per beat, so a speaker talks while Anchor works. The run ends at about 3:30. UNVERIFIED: time the run in the first rehearsal.
+Each beat names the action, the spoken lines, and what the audience sees. The times include about 5 seconds of model latency per beat, so a speaker talks while Anchor works. The run ends at about 3:50. UNVERIFIED: time the run in the first rehearsal.
 
 ### The problem (0:00, Narrator)
 
@@ -66,9 +66,10 @@ The screen shows the landing page of the website. On "Meet Anchor", the Operator
 | 4 | 1:45 | Sofia | Tap "Reply to the family". | None | The buttons of the same message change at once to "❤️ Sending my love", "😊 That made me smile", and "💛 I miss you all". |
 | 5 | 1:55 | Sofia, then Eleni | Tap "💛 I miss you all". | Eleni, after the group line: "Mum saw them!" | The buttons collapse to "✅ Sent to the family". The group gets "Sofia: «I miss you all 💛»" as a reply to Eleni's photo. |
 | 6 | 2:10 | Anchor | Sends Sofia one voice note. | None | "Shall I ask Eleni to call you?", with the buttons "Yes, ask Eleni" and "No, thanks". |
-| 7 | 2:20 | Sofia, then Eleni | Tap "Yes, ask Eleni". | Eleni: "Calling you now, Mum." Narrator: "And when nobody is free, Anchor can ring Sofia and have this same talk by voice." | The buttons collapse to "✅ Asked Eleni to call you". The group gets "Eleni, Sofia would love a call from you 💛", with a mention of Eleni. |
+| 7 | 2:20 | Sofia | Tap "Yes, ask Eleni". | None | The buttons collapse to "✅ Asked Eleni to call you". The group gets "Eleni, Sofia would love a call from you 💛", with a mention of Eleni. |
+| 8 | 2:30 | Eleni, then Sofia | Eleni replies to "Eleni, Sofia would love a call from you 💛" in the group with "Calling you now, Mum ❤️". Sofia taps "❤️ Love you too". | Eleni, while she types: "Calling you now, Mum." Narrator, after the tap: "Sofia never opened the busy group. The conversation came to her. And when nobody is free, Anchor can ring Sofia and have this same talk by voice." | Sofia gets a voice note: "Eleni: «Calling you now, Mum ❤️»", with "❤️ Love you too", "😊 Can't wait", and "👍 Okay". After the tap, the buttons collapse to "✅ Sent to Eleni", and the group gets "Sofia: «Love you too ❤️»" as a reply to Eleni. |
 
-### The close (2:40, Closer)
+### The close (3:00, Closer)
 
 Both screens stay on the group until the Operator switches the screen to the website.
 
@@ -134,5 +135,5 @@ Caution: `/fastforward` moves the family clock of the whole bot until `/fastforw
 1. Before each rehearsal, do the steps of "Reset and prepare".
 2. Run the full script on the live bot with a stopwatch, and write down the time of each beat.
 3. Run `/fastforward 1` a second time without a new post. Make sure that Sofia gets the memory again, and that the group gets no new post.
-4. If the run takes more than 3:30, shorten the spoken lines first.
+4. If the run takes more than 3:50, shorten the spoken lines first.
 5. After the last rehearsal, Alexandros sends `/fastforward now` from the command menu. Then do the steps of "Reset and prepare" again.
