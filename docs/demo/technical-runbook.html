@@ -34,14 +34,14 @@
   <h1>Anchor · Technical runbook</h1>
   <p class="sub">Everything the team runs around the demo. The script of the presenters is <a href="script.html">a separate page</a>.</p>
 
-  <div class="status"><b>Live bot:</b> <code>@anchor_family_bot</code> on Cloud Run <code>anchor-bot</code> (<code>europe-west1</code>) runs v2: revision <code>anchor-bot-00026-mzp</code>, commit <code>1b09112</code> (deployed 2026-09-26 at 22:34 Athens time, with the private memory of the week for every started member at each 11:00 slot and each <code>/fastforward 1</code>, one-tap replies to the family, the call request to the top sharer, echoes only between moments saved a week apart, answers checked against the moments they cite and followed by the photo of the source, worded answers to "when did …" questions, album captions that can quote a story, photo descriptions of up to 30 words, a bare "Call me" in the group that rings the writer, "Ask me anything about the family." on every call with answers from the family record, voice notes read as the text of their transcripts, a memory for a general request such as "Give me a memory" without "Anchor,", "@anchor_family_bot" read as "Anchor,", the <code>/web</code> API that serves the family record, its photos, and data export and deletion to the website after a sign-in with Telegram, the batched reminder call, tag collections, the join check, the warm handoff to Eleni, photo descriptions, the scam shield, the phone request on "Call me", a call for questions when no new moment is left to call about, private talk with the group chat as context, birthday reminder offers, "remind me about my pills", "more memories", and requests that pass an open invitation), with <code>ANCHOR_BOT_ONLY=true</code>, the call variables, and <code>--timeout=900</code>. The service is public for calls since 2026-09-26 at 01:00 Athens time: <code>GET /</code> gives 200, and <code>/whatsapp</code> and <code>/api/*</code> give 404. Steps 1 to 4 of the call gate are done. The first call through the live bot rang and held the conversation on 2026-09-26. The stage script shows no call.</div>
+  <div class="status"><b>Live bot:</b> <code>@anchor_family_bot</code> on Cloud Run <code>anchor-bot</code> (<code>europe-west1</code>) runs v2: revision <code>anchor-bot-00032-pd4</code>, commit <code>1022c28</code> (deployed 2026-09-27 at 12:45 Athens time, with the 5 latest photos of the family chat for every started member but the poster on each new photo, "Tell me more" as a short story, family replies that come back to Sofia in private, a "Call me" button, <code>/fastforward now</code>, one-tap replies to the family, the call request to the top sharer, echoes only between moments saved a week apart, answers checked against the moments they cite and followed by the photo of the source, worded answers to "when did …" questions, album captions that can quote a story, photo descriptions of up to 30 words, a bare "Call me" in the group that rings the writer, "Ask me anything about the family." on every call with answers from the family record, voice notes read as the text of their transcripts, a memory for a general request such as "Give me a memory" without "Anchor,", "@anchor_family_bot" read as "Anchor,", the <code>/web</code> API that serves the family record, its photos, and data export and deletion to the website after a sign-in with Telegram, the batched reminder call, tag collections, the join check, the warm handoff to Eleni, photo descriptions, the scam shield, the phone request on "Call me", a call for questions when no new moment is left to call about, private talk with the group chat as context, birthday reminder offers, "remind me about my pills", "more memories", and requests that pass an open invitation), with <code>ANCHOR_BOT_ONLY=true</code>, the call variables, and <code>--timeout=900</code>. The service is public for calls since 2026-09-26 at 01:00 Athens time: <code>GET /</code> gives 200, and <code>/whatsapp</code> and <code>/api/*</code> give 404. Steps 1 to 4 of the call gate are done. The first call through the live bot rang and held the conversation on 2026-09-26. The stage script shows no call.</div>
 
   <h2>1 · Before the demo</h2>
   <ol class="check">
-    <li><input type="checkbox" id="d1"><label for="d1">The live bot runs revision <code>anchor-bot-00028</code> or later, which adds <code>/fastforward now</code>. See the status above for the current revision.</label></li>
+    <li><input type="checkbox" id="d1"><label for="d1">The live bot runs revision <code>anchor-bot-00032-pd4</code> or later, which sends the latest photos on each new photo. See the status above for the current revision.</label></li>
     <li><input type="checkbox" id="d2"><label for="d2">Use the group of the demo. A person is a member in one family only, so a new group sends Sofia's private replies to the old family.</label></li>
     <li><input type="checkbox" id="d3"><label for="d3">Anchor is an admin in the group. Anchor sends an ephemeral message only as an admin. Promote Anchor at least one day before, because a move to a supergroup posts <code>intro</code> a second time.</label></li>
-    <li><input type="checkbox" id="d4"><label for="d4">Make Alexandros a group admin, and turn "Remain anonymous" off for him. He sends the jump from phone 3, which stays off the screen. Anchor ignores commands from an anonymous admin.</label></li>
+    <li><input type="checkbox" id="d4"><label for="d4">Turn "Remain anonymous" off for the admin who sends <code>/fastforward now</code> after a rehearsal that jumped. Anchor ignores commands from an anonymous admin.</label></li>
   </ol>
 
   <h2>2 · Choices for the stage</h2>
@@ -49,7 +49,7 @@
   <ol class="check">
     <li><input type="checkbox" id="c1"><label for="c1">Sofia: "Family moments now and then" and "Talk to me by voice" on, and "Call me on the phone" off. The calls tick rings a member with the call choice at the same 11:00 slot as the memory.</label></li>
     <li><input type="checkbox" id="c2"><label for="c2">Every tester: "Call me on the phone" off, for the same reason.</label></li>
-    <li><input type="checkbox" id="c3"><label for="c3">Eleni: "Family moments now and then" and "Offers to send my moments to the family" off. Otherwise, her phone gets a private memory and a share offer on stage too.</label></li>
+    <li><input type="checkbox" id="c3"><label for="c3">Odisseas: "Offers to send my moments to the family" off, so no share offer shows on his phone. He gets no memory for his own photo.</label></li>
     <li><input type="checkbox" id="c4"><label for="c4">A member who started before PR 77 keeps "Family moments" off. Turn "Family moments" on for each tester who wants the memory.</label></li>
   </ol>
 
@@ -67,10 +67,9 @@
   <h2>4 · Reset and prepare</h2>
   <div class="warn"><b>Caution:</b> a staged text must name no future action with a time, or a reminder offer appears on stage. A reminder that is still due fires inside the next jump, before the memory. The jump of a rehearsal fires every due reminder, so rehearse after the last reminder test.</div>
   <ol class="check">
-    <li><input type="checkbox" id="r1"><label for="r1">Remove the moments of the rehearsals. Reply "Anchor, forget this" to each rehearsal photo. The memory takes the 5 newest moments of the past 7 days, and the call question names the member who shared the most of them.</label></li>
-    <li><input type="checkbox" id="r7"><label for="r7">Keep one old photo in the record: Eleni posts it in the group before the demo, with the year in its caption, such as "Mum and Dad at the beach, 1975". The memory shows the least-seen older photo first as "then", so keep this one old photo only, and never forget it in step 1.</label></li>
-    <li><input type="checkbox" id="r3"><label for="r3">Put the staged photo of a child's first day at school on Eleni's phone, with the caption "Maria's first day of school! She wore her new red backpack."</label></li>
-    <li><input type="checkbox" id="r5"><label for="r5">Put the staged beach photo on Alexandros's phone, with the caption "Sunday lunch at the beach with the whole family!".</label></li>
+    <li><input type="checkbox" id="r1"><label for="r1">Remove the photos of the rehearsals. Reply "Anchor, forget this" to each rehearsal photo, and keep the two staged photos of the next step. The memory holds the 5 latest photos of the family chat, and the call question names the member who shared the most of them.</label></li>
+    <li><input type="checkbox" id="r7"><label for="r7">Before the demo, post two staged photos in the group: first Eleni's beach photo with the caption "Sunday lunch at the beach with the whole family!", then one photo from Odisseas. Odisseas then shares the most photos of the latest 5, so the call question names him.</label></li>
+    <li><input type="checkbox" id="r3"><label for="r3">Put the staged photo of a child's first day at school on Odisseas's phone, with the caption "Maria's first day of school! She wore her new red backpack."</label></li>
     <li><input type="checkbox" id="r4"><label for="r4">Keep a screen recording of the best rehearsal ready. Play the recording if the live bot fails.</label></li>
     <li><input type="checkbox" id="r6"><label for="r6">Open the website <code>https://anchor-open26.vercel.app</code> in a browser tab on the Operator's laptop, next to the phones. The opening and the close show its landing page.</label></li>
   </ol>
@@ -79,13 +78,13 @@
   <div class="warn"><b>One poller per token.</b> The dev bot runs locally with <code>pnpm dev:api</code>, from a worktree whose <code>apps/api/.env.local</code> holds the dev bot token, <code>OPENAI_API_KEY</code>, and <code>TZ=Europe/Athens</code>. Only one process may poll one token.</div>
 
   <h2>6 · Rehearse twice</h2>
-  <div class="warn"><b>/fastforward moves the clock of the whole bot until /fastforward now.</b> A jump of whole days keeps the hour of the 11:00 and 18:00 slots. From the 7th jump on, each jump reaches an 18:00 slot with a moment that is 7 days old, and a group memory posts. <code>/fastforward now</code> sets the family clock back to the real time, and the count of jumps starts again. Before the demo, send <code>/fastforward now</code> after the last rehearsal.</div>
+  <div class="warn"><b>The stage flow needs no /fastforward.</b> If a rehearsal moves the family clock, an admin sends <code>/fastforward now</code> after it, which sets the clock back to the real time.</div>
   <ol class="check">
     <li><input type="checkbox" id="h1"><label for="h1">Before each rehearsal, do the steps of "Reset and prepare".</label></li>
     <li><input type="checkbox" id="h2"><label for="h2">Run the full script on the live bot with a stopwatch. Write down the time of each beat.</label></li>
-    <li><input type="checkbox" id="h3"><label for="h3">Run /fastforward 1 a second time without a new post. Make sure that Sofia gets the memory again, and that the group gets no new post.</label></li>
-    <li><input type="checkbox" id="h4"><label for="h4">If the run takes more than 3:50, shorten the spoken lines first.</label></li>
-    <li><input type="checkbox" id="h5"><label for="h5">After the last rehearsal, Alexandros sends <code>/fastforward now</code> from the command menu. Then do the steps of "Reset and prepare" again.</label></li>
+    <li><input type="checkbox" id="h3"><label for="h3">Post one more photo from another account. Make sure that Sofia gets the memory again, and that the poster does not.</label></li>
+    <li><input type="checkbox" id="h4"><label for="h4">If the run takes more than 3:20, shorten the spoken lines first.</label></li>
+    <li><input type="checkbox" id="h5"><label for="h5">After the last rehearsal, do the steps of "Reset and prepare" again.</label></li>
   </ol>
 
   <h2>7 · Deploy a fix</h2>
@@ -103,7 +102,7 @@ pnpm deploy:bot</pre>
     <tr><td>No ❤ on a photo</td><td>The model is slow, or the bot is down</td><td>Wait 15 s. Then check the logs.</td></tr>
     <tr><td>No reply to anything</td><td>No family in the record: the bot never saw itself join</td><td>Remove Anchor from the group, add it again, promote it.</td></tr>
     <tr><td>409 lines keep coming</td><td>A second process polls the same token</td><td>Stop every local run that uses that token.</td></tr>
-    <tr><td>No memory after /fastforward 1</td><td>"Family moments" off for the member, the member never tapped Start, or the jump was a clock time such as 08:05</td><td>Send "settings" to Anchor in private and turn "Family moments" on. Jump by whole days.</td></tr>
+    <tr><td>No memory after a new photo</td><td>"Family moments" off for the member, the member never tapped Start, or the member posted the photo</td><td>Send "settings" to Anchor in private and turn "Family moments" on. Post from another account.</td></tr>
     <tr><td>No ring on a call</td><td>No phone or "Call me" off for Sofia, a missing <code>TWILIO_FROM</code> or <code>ANCHOR_PUBLIC_URL</code>, the Twilio geo permissions, or no <code>allUsers</code> binding</td><td>Walk the call gate checklist, then check the logs.</td></tr>
     <tr><td>The call rings, but Anchor stays silent</td><td>The Realtime session failed before the opener, or Twilio cannot reach <code>wss://</code> on <code>ANCHOR_PUBLIC_URL</code></td><td>Anchor hangs up on a Realtime error. Check the logs for "Refused a call stream".</td></tr>
   </table>
