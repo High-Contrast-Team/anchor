@@ -9,7 +9,7 @@ import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Mem
 import { ask, valid } from '../model/model';
 import { react } from './capture/capture';
 import { ADDRESS, asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
-import { captionFor, eventTime } from './memories';
+import { captionFor, eventTime, storyFor } from './memories';
 import { nextSteps } from './members';
 
 const MAX_MOMENTS = 5;
@@ -152,7 +152,7 @@ async function tellMore(invitation: Invitation, moments: Moment[], family: Famil
     { label: lines.buttons.dontShowThese, data: `inv:hide:${invitation.id}` },
   ];
   const voices = moments.flatMap((moment) => (moment.voice ? [moment.voice] : []));
-  await tell(family, member, { text: lines.aboutMoments(moments), ...(voices.length ? {} : { buttons }) }, ctx, lines.aboutMoments(moments, true));
+  await tell(family, member, { text: await storyFor(moments), ...(voices.length ? {} : { buttons }) }, ctx);
   for (const [index, voice] of voices.entries()) await tell(family, member, { voice, ...(index === voices.length - 1 ? { buttons } : {}) }, ctx);
 }
 

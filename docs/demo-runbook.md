@@ -86,7 +86,7 @@ On "our website", the Operator switches the screen from the phones to the landin
 
 The call question names the member who shared the most moments of the memory. On a tie, it names the member who shared first. For this reason, Eleni posts first, and each poster posts one photo only. A voice note from Alexandros counts as a second moment when it comes after the ❤ of his photo.
 
-The script does not show "Tell me more". A tap on "Tell me more" sends one voice note that names each moment, its date, and what the picture shows, then plays the voice notes of the sharers. That message has the buttons "Reply to the family" and "Don't show me these again". "Don't show me these again" hides the moments from Sofia only, and the family still sees them. "Later, please" collapses the buttons to "✅ Another day, then". The Closer can answer about each in the Q&A.
+The script does not show "Tell me more". A tap on "Tell me more" sends one voice note that tells the moments as a short story, with what each photo shows, then plays the voice notes of the sharers. That message has the buttons "Reply to the family" and "Don't show me these again". "Don't show me these again" hides the moments from Sofia only, and the family still sees them. "Later, please" collapses the buttons to "✅ Another day, then". The Closer can answer about each in the Q&A.
 
 ## Questions to expect
 

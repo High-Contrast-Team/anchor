@@ -43,21 +43,11 @@ test('a moment with words keeps the quoting lines byte for byte', () => {
   );
 });
 
-test('a private memory names each moment with its date, and only the voice says what the picture shows', () => {
-  const described = moment({
-    photo: { id: 'p1' },
-    savedAt: new Date(2026, 8, 25, 12).getTime(),
-    description: 'The photo shows a girl with a red backpack at a school gate.',
-  });
-  const other = moment({ by: nikos, text: 'Sunday lunch', savedAt: new Date(2026, 8, 20, 12).getTime() });
-  expect(lines.aboutMoments([described, other])).toBe(
-    'Sofia shared: «Maria on her first day» · 25 September 2026\nNikos shared: «Sunday lunch» · 20 September 2026',
-  );
-  expect(lines.aboutMoments([described, other], true)).toBe(
-    'Sofia shared: «Maria on her first day» · 25 September 2026\nThe photo shows a girl with a red backpack at a school gate.\n' +
-      'Nikos shared: «Sunday lunch» · 20 September 2026',
-  );
-  expect(lines.aboutMoments([moment({ text: 'a'.repeat(300) })])).toContain(`«${'a'.repeat(119)}…»`);
+test('the fixed story of "Tell me more" gives one sentence per sharer, in the order of the memory, with the titles of the moments', () => {
+  const radio = moment({ title: "Maria's radio gift" });
+  const lunch = moment({ by: nikos, title: 'Sunday lunch at the beach' });
+  const nap = moment({ title: 'a nap in the hammock' });
+  expect(lines.weekStory([radio, lunch, nap])).toBe("Sofia shared Maria's radio gift and a nap in the hammock. Nikos shared Sunday lunch at the beach.");
 });
 
 test('the private memory lines read as the spike writes them', () => {
@@ -83,11 +73,10 @@ test('the private memory lines read as the spike writes them', () => {
   expect([lines.buttons.askCall('Eleni'), lines.buttons.dontShowThese]).toEqual(['Yes, ask Eleni', "Don't show me these again"]);
 });
 
-test('a wordless photo goes through memoryCaption, aboutMoments, and echoCaption with the photo phrase and no quote mark', () => {
+test('a wordless photo goes through memoryCaption and echoCaption with the photo phrase and no quote mark', () => {
   const photo = wordless({ photo: { id: 'p1' } });
   const outputs = [
     lines.memoryCaption('One week ago', photo),
-    lines.aboutMoments([photo]),
     lines.echoCaption(photo, wordless({ by: nikos, video: { id: 'v1' } })),
   ];
   for (const output of outputs) {
