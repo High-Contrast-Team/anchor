@@ -194,6 +194,7 @@ export const lines = {
     start: 'Start',
     // the buttons of a private memory: a label says what a tap does, and the most useful button comes first
     tellMeMore: 'Tell me more',
+    oneMoment: '⏳ One moment…',
     replyToFamily: 'Reply to the family',
     notNow: 'Later, please',
     dontShowThese: "Don't show me these again",
