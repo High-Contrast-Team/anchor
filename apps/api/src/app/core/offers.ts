@@ -65,7 +65,8 @@ export async function closeOffer(family: Family, offer: Offer, ctx: Context, cha
 }
 
 export async function fadeOffers(family: Family, kind: Offer['kind'], now: number, ctx: Context): Promise<Offer[]> {
-  const faded = family.offers.filter((offer) => offer.kind === kind && now - offer.at >= FADE_MS);
+  // an offer from a day that /fastforward now undid lies in the future, so it fades at once instead of never
+  const faded = family.offers.filter((offer) => offer.kind === kind && (now - offer.at >= FADE_MS || offer.at > now));
   if (!faded.length) return faded;
   const transport = ctx.transport(family.id);
   for (const offer of faded) {

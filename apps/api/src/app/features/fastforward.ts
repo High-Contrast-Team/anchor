@@ -1,7 +1,21 @@
+import { dayIndex } from '../core/clock';
 import { lines } from '../core/lines';
-import type { Feature } from '../core/types';
+import type { Feature, State } from '../core/types';
 import { flush } from './capture/capture';
 import { TIME, nextLocal } from './reminders/rules';
+
+// the clock is global, so a reset clears the markers of the undone days in every family: the stage jump then lands on a day that fires again
+function forgetUndoneDays(state: State, now: number) {
+  const today = dayIndex(now);
+  for (const family of state.families) {
+    if ((family.lastMemoryDay ?? 0) > today) family.lastMemoryDay = undefined;
+    for (const member of family.members) {
+      if ((member.lastInvitationDay ?? 0) > today) member.lastInvitationDay = undefined;
+      if ((member.lastCallDay ?? 0) > today) member.lastCallDay = undefined;
+      if ((member.seenAt ?? 0) > now) member.seenAt = undefined;
+    }
+  }
+}
 
 export const fastforward: Feature = {
   name: 'fastforward',
@@ -15,19 +29,23 @@ export const fastforward: Feature = {
     }
     const argument = event.text.match(/^\/fastforward\s+(\S+)\s*$/)?.[1] ?? '';
     const clock = TIME.test(argument);
+    // "now" undoes the rehearsal jumps; the gap to the real clock also covers a short demo day on the dev bot
+    const reset = argument === 'now';
     const days = /^\d+$/.test(argument) ? Number(argument) : 0;
-    if (!clock && !(days >= 1 && days <= 400)) {
+    if (!clock && !reset && !(days >= 1 && days <= 400)) {
       await ctx.transport(family.id).send(event.chatId, { text: lines.fastforwardUsage, ...to });
       return true;
     }
     await flush(family, ctx);
     const now = ctx.now();
-    ctx.store.state.clockOffset += clock ? nextLocal(now, argument) - now : days * 86_400_000;
+    ctx.store.state.clockOffset += reset ? Date.now() - now : clock ? nextLocal(now, argument) - now : days * 86_400_000;
+    if (reset) forgetUndoneDays(ctx.store.state, ctx.now());
     ctx.store.save();
-    // a jump to a clock time keeps the slots inside the jump quiet, and only the presenter sees it
-    if (clock) ctx.restartWindow?.();
+    // a jump to a clock time or back to now keeps the slots on the way quiet, and only the presenter sees it
+    const quiet = clock || reset;
+    if (quiet) ctx.restartWindow?.();
     const date = new Date(ctx.now()).toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' });
-    await ctx.transport(family.id).send(event.chatId, { text: lines.fastforwarded(date), ...(clock ? { onlyFor: event.sender.id } : to) });
+    await ctx.transport(family.id).send(event.chatId, { text: lines.fastforwarded(date), ...(quiet ? { onlyFor: event.sender.id } : to) });
     return true;
   },
 };
