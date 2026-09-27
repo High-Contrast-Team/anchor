@@ -82,6 +82,14 @@ export const lines = {
   ] as const,
   familyReply: (name: string, [emoji, words]: readonly [string, string]) => `${name}: «${words} ${emoji}»`,
   askCall: (name: string) => `Shall I ask ${name} to call you?`,
+  // the spike of 2026-09-27: a family reply to a line of the member comes back in private, with answers that fit a person
+  familySaid: (name: string, text: string) => `${name}: «${clip(text, 300)}»`,
+  answers: [
+    ['❤️', 'Love you too'],
+    ['😊', "Can't wait"],
+    ['👍', 'Okay'],
+  ] as const,
+  sentTo: (name: string) => `✅ Sent to ${name}`,
   done: {
     sent: '✅ Sent to the family',
     later: '✅ Another day, then',

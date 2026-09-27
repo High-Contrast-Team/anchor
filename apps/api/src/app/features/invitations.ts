@@ -8,7 +8,7 @@ import { tell } from '../core/tell';
 import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Member, Moment, Outgoing, Person, Transport } from '../core/types';
 import { ask, valid } from '../model/model';
 import { react } from './capture/capture';
-import { asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
+import { ADDRESS, asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
 import { captionFor } from './memories';
 import { nextSteps } from './members';
 
@@ -21,6 +21,7 @@ const REPLY_SCHEMA = {
 };
 // the old single-moment buttons carry a moment id, so they match too, and a tap on them only removes them
 const BUTTON = /^inv:(\w+):(.+)$/;
+const ANSWER = /^ans:(\d):([^:]+):(.+)$/; // the answer, the family message, and its sender
 const QUESTION_WORD = /^(who|what|where|when|which|why)\b/i;
 const logger = new Logger('Invitations');
 
@@ -42,6 +43,13 @@ function topSharer(moments: Moment[], member: Member): Person | undefined {
   const others = moments.filter((moment) => moment.by.id !== member.id);
   const count = (id: string) => others.filter((moment) => moment.by.id === id).length;
   return others.reduce<Person | undefined>((top, moment) => (!top || count(moment.by.id) > count(top.id) ? moment.by : top), undefined);
+}
+
+// a group reply to this post comes back to the member in private
+function speakFor(family: Family, member: Member, posted: { messageId: string } | undefined, ctx: Context) {
+  if (!posted) return;
+  (family.spokenFor ??= {})[posted.messageId] = member.id;
+  ctx.store.save();
 }
 
 async function announce(family: Family, message: Outgoing, ctx: Context) {
@@ -155,7 +163,7 @@ async function tap(action: string, event: Incoming, invitation: Invitation, fami
     ctx.store.save();
     await done(lines.done.sent);
     const lead = moments.find((moment) => moment.id === invitation.momentId);
-    await announce(family, { text: lines.familyReply(member.name, words), replyTo: lead?.messageIds[0] }, ctx);
+    speakFor(family, member, await announce(family, { text: lines.familyReply(member.name, words), replyTo: lead?.messageIds[0] }, ctx), ctx);
     if (!sharer) return;
     const buttons = [
       { label: lines.buttons.askCall(sharer.name), data: `inv:call:${invitation.id}` },
@@ -168,11 +176,41 @@ async function tap(action: string, event: Incoming, invitation: Invitation, fami
     invitation.askedCall = true;
     ctx.store.save();
     await done(lines.done.askedCall(sharer.name));
-    await announce(family, { text: lines.wouldLoveCall(member.name, sharer.name), mention: sharer }, ctx);
+    speakFor(family, member, await announce(family, { text: lines.wouldLoveCall(member.name, sharer.name), mention: sharer }, ctx), ctx);
   }
 }
 
+// the spike of 2026-09-27, decision 4: a group reply to a line that Anchor posted for a member reaches that member, so the talk goes on in private
+async function passOn(event: Incoming, family: Family, ctx: Context): Promise<boolean> {
+  const member = family.members.find((item) => item.id === family.spokenFor?.[event.replyTo ?? '']);
+  const text = event.text?.trim() ?? '';
+  if (!member?.started || event.sender.id === member.id || text.startsWith('/') || ADDRESS.test(text) || (!text && !event.voice)) return false;
+  const buttons = lines.answers.map(([emoji, words], index) => ({ label: `${emoji} ${words}`, data: `ans:${index}:${event.messageId}:${event.sender.id}` }));
+  const said = lines.familySaid(event.sender.name, text || lines.voiceNote);
+  // a voice reply goes on as the family member's own voice
+  await tell(family, member, event.voice ? { voice: event.voice, text: said, buttons } : { text: said, buttons }, ctx);
+  return true;
+}
+
+// ponytail: in memory, so a double tap right after a restart posts twice; move to the record when that matters
+const answered = new Set<string>();
+
+async function answer(event: Incoming, [, index, messageId, fromId]: RegExpMatchArray, family: Family, member: Member, ctx: Context) {
+  const words = lines.answers[Number(index)];
+  const key = `${member.id}:${messageId}`;
+  if (!words || answered.has(key)) return;
+  answered.add(key);
+  const name = family.members.find((item) => item.id === fromId)?.name ?? 'the family';
+  await setButtons(family, member, event.messageId, [{ label: lines.sentTo(name), data: 'inv:done:-' }], ctx);
+  speakFor(family, member, await announce(family, { text: lines.familyReply(member.name, words), replyTo: messageId }, ctx), ctx);
+}
+
 async function inPrivate(event: Incoming, family: Family, member: Member, ctx: Context): Promise<boolean> {
+  const answering = event.button?.match(ANSWER);
+  if (answering) {
+    await answer(event, answering, family, member, ctx);
+    return true;
+  }
   const [, action, id] = event.button?.match(BUTTON) ?? [];
   if ((event.button && !action) || event.text?.startsWith('/')) return false;
   // a fixed phrase such as "settings" or "what did I miss?" goes to intents, and the open memory stays open; a longer story that names
@@ -325,7 +363,7 @@ export const invitations: Feature = {
 
   async handle(event, family, ctx) {
     if (!family) return false;
-    if (event.chat === 'group') return false;
+    if (event.chat === 'group') return event.replyTo ? passOn(event, family, ctx) : false;
     const member = family.members.find((person) => person.id === event.sender.id);
     return member ? inPrivate(event, family, member, ctx) : false;
   },

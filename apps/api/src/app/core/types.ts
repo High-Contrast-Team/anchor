@@ -153,6 +153,7 @@ export type Family = {
   chat?: ChatLine[]; // the latest group messages, the context of a private chat with Anchor
   lastShown?: string[]; // the moment ids of the latest group memory, which "more memories" leaves out
   lastMemoryDay?: number;
+  spokenFor?: Record<string, string>; // the group message id of each line that Anchor posted for a member, and the member id
   counters: Record<string, number>;
 };
 
