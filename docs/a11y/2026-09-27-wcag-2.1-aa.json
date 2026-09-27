@@ -1,0 +1,913 @@
+{
+  "generatedAt": "2026-09-27T07:28:21.285Z",
+  "commit": "39c5debea20dd449341e1c706ce1b59b3929c1f7",
+  "standard": "WCAG 2.1 Level A and AA",
+  "engine": "axe-core 4.13.0",
+  "tags": [
+    "wcag2a",
+    "wcag2aa",
+    "wcag21a",
+    "wcag21aa"
+  ],
+  "baseUrl": "http://127.0.0.1:4321",
+  "viewports": [
+    {
+      "name": "desktop",
+      "width": 1280,
+      "height": 720
+    },
+    {
+      "name": "mobile",
+      "width": 390,
+      "height": 844
+    }
+  ],
+  "runs": [
+    {
+      "route": "/",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "status": 200,
+      "title": "Anchor · Keeping memories alive for the whole family",
+      "violations": [],
+      "incomplete": [],
+      "passes": 24,
+      "inapplicable": 38
+    },
+    {
+      "route": "/",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/",
+      "status": 200,
+      "title": "Anchor · Keeping memories alive for the whole family",
+      "violations": [],
+      "incomplete": [],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/how-it-works",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/how-it-works",
+      "status": 200,
+      "title": "How it works · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary.btn[href$=\"family\"]"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/family\">Get started</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 22,
+      "inapplicable": 40
+    },
+    {
+      "route": "/how-it-works",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/how-it-works",
+      "status": 200,
+      "title": "How it works · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/family\">Get started</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 19,
+      "inapplicable": 43
+    },
+    {
+      "route": "/app",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/app",
+      "status": 200,
+      "title": "Demo · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-title"
+              ],
+              "html": "<h2 id=\"consent-title\">Cookies &amp; privacy</h2>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+            },
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it's partially obscured by another element"
+            }
+          ]
+        }
+      ],
+      "passes": 24,
+      "inapplicable": 38
+    },
+    {
+      "route": "/app",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/app",
+      "status": 200,
+      "title": "Demo · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/family",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/family",
+      "status": 200,
+      "title": "Family · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 24,
+      "inapplicable": 38
+    },
+    {
+      "route": "/family",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/family",
+      "status": 200,
+      "title": "Family · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/my-data",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/my-data",
+      "status": 200,
+      "title": "My data · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 22,
+      "inapplicable": 40
+    },
+    {
+      "route": "/my-data",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/my-data",
+      "status": 200,
+      "title": "My data · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 18,
+      "inapplicable": 44
+    },
+    {
+      "route": "/privacy",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/privacy",
+      "status": 200,
+      "title": "Privacy · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/privacy",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/privacy",
+      "status": 200,
+      "title": "Privacy · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/terms",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/terms",
+      "status": 200,
+      "title": "Terms of use · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/terms",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/terms",
+      "status": 200,
+      "title": "Terms of use · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/cookies",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/cookies",
+      "status": 200,
+      "title": "Cookies · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/cookies",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/cookies",
+      "status": 200,
+      "title": "Cookies · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 18,
+      "inapplicable": 44
+    },
+    {
+      "route": "/sitemap",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/sitemap",
+      "status": 200,
+      "title": "Sitemap · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/sitemap",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/sitemap",
+      "status": 200,
+      "title": "Sitemap · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 19,
+      "inapplicable": 43
+    },
+    {
+      "route": "/404",
+      "mode": "consent-open",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/this-page-does-not-exist-a11y",
+      "status": 404,
+      "title": "Page not found · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary.btn[href=\"/\"]"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/\">Back to Anchor</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/404",
+      "mode": "consent-dismissed",
+      "viewport": "desktop",
+      "url": "http://127.0.0.1:4321/this-page-does-not-exist-a11y",
+      "status": 404,
+      "title": "Page not found · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/\">Back to Anchor</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 17,
+      "inapplicable": 45
+    },
+    {
+      "route": "/",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "status": 200,
+      "title": "Anchor · Keeping memories alive for the whole family",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it partially overlaps other elements"
+            }
+          ]
+        }
+      ],
+      "passes": 24,
+      "inapplicable": 38
+    },
+    {
+      "route": "/",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/",
+      "status": 200,
+      "title": "Anchor · Keeping memories alive for the whole family",
+      "violations": [],
+      "incomplete": [],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/how-it-works",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/how-it-works",
+      "status": 200,
+      "title": "How it works · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary.btn[href$=\"family\"]"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/family\">Get started</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            },
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it partially overlaps other elements"
+            }
+          ]
+        }
+      ],
+      "passes": 22,
+      "inapplicable": 40
+    },
+    {
+      "route": "/how-it-works",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/how-it-works",
+      "status": 200,
+      "title": "How it works · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/family\">Get started</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 19,
+      "inapplicable": 43
+    },
+    {
+      "route": "/app",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/app",
+      "status": 200,
+      "title": "Demo · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it partially overlaps other elements"
+            }
+          ]
+        }
+      ],
+      "passes": 26,
+      "inapplicable": 36
+    },
+    {
+      "route": "/app",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/app",
+      "status": 200,
+      "title": "Demo · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 25,
+      "inapplicable": 37
+    },
+    {
+      "route": "/family",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/family",
+      "status": 200,
+      "title": "Family · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it partially overlaps other elements"
+            }
+          ]
+        }
+      ],
+      "passes": 24,
+      "inapplicable": 38
+    },
+    {
+      "route": "/family",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/family",
+      "status": 200,
+      "title": "Family · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/my-data",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/my-data",
+      "status": 200,
+      "title": "My data · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 22,
+      "inapplicable": 40
+    },
+    {
+      "route": "/my-data",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/my-data",
+      "status": 200,
+      "title": "My data · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 18,
+      "inapplicable": 44
+    },
+    {
+      "route": "/privacy",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/privacy",
+      "status": 200,
+      "title": "Privacy · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                "#consent-body"
+              ],
+              "html": "<p id=\"consent-body\">Essential storage only by default. See <a href=\"/privacy\">Privacy</a> and<!-- --> <a href=\"/cookies\">Cookies</a>.</p>",
+              "failureSummary": "Fix any of the following:\n  Element's background color could not be determined because it partially overlaps other elements"
+            }
+          ]
+        }
+      ],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/privacy",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/privacy",
+      "status": 200,
+      "title": "Privacy · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/terms",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/terms",
+      "status": 200,
+      "title": "Terms of use · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/terms",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/terms",
+      "status": 200,
+      "title": "Terms of use · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 20,
+      "inapplicable": 42
+    },
+    {
+      "route": "/cookies",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/cookies",
+      "status": 200,
+      "title": "Cookies · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/cookies",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/cookies",
+      "status": 200,
+      "title": "Cookies · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 18,
+      "inapplicable": 44
+    },
+    {
+      "route": "/sitemap",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/sitemap",
+      "status": 200,
+      "title": "Sitemap · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 23,
+      "inapplicable": 39
+    },
+    {
+      "route": "/sitemap",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/sitemap",
+      "status": 200,
+      "title": "Sitemap · Anchor",
+      "violations": [],
+      "incomplete": [],
+      "passes": 19,
+      "inapplicable": 43
+    },
+    {
+      "route": "/404",
+      "mode": "consent-open",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/this-page-does-not-exist-a11y",
+      "status": 404,
+      "title": "Page not found · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary.btn[href=\"/\"]"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/\">Back to Anchor</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 21,
+      "inapplicable": 41
+    },
+    {
+      "route": "/404",
+      "mode": "consent-dismissed",
+      "viewport": "mobile",
+      "url": "http://127.0.0.1:4321/this-page-does-not-exist-a11y",
+      "status": 404,
+      "title": "Page not found · Anchor",
+      "violations": [],
+      "incomplete": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "tags": [
+            "cat.color",
+            "wcag2aa",
+            "wcag143",
+            "TTv5",
+            "TT13.c",
+            "EN-301-549",
+            "EN-9.1.4.3",
+            "ACT",
+            "RGAAv4",
+            "RGAA-3.2.1"
+          ],
+          "description": "Ensure the contrast between foreground and background colors meets WCAG 2 AA minimum contrast ratio thresholds",
+          "help": "Elements must meet minimum color contrast ratio thresholds",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.13/color-contrast?application=axeAPI",
+          "nodes": [
+            {
+              "impact": "serious",
+              "target": [
+                ".btn-primary"
+              ],
+              "html": "<a class=\"btn btn-primary\" href=\"/\">Back to Anchor</a>",
+              "failureSummary": "Fix any of the following:\n  Element has a 1:1 contrast ratio with the background"
+            }
+          ]
+        }
+      ],
+      "passes": 17,
+      "inapplicable": 45
+    }
+  ]
+}
