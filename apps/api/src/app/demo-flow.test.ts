@@ -295,6 +295,7 @@ test('the stage flow: two posts, /fastforward 1, a private memory for every star
       { label: 'Tell me more', data: `inv:more:${id}` },
       { label: 'Reply to the family', data: `inv:reply:${id}` },
       { label: 'Later, please', data: `inv:later:${id}` },
+      { label: 'Call me', data: 'nxt:callMe' },
     ];
     expect(toMember(person).slice(-2).map(({ message }) => message)).toEqual([album, expect.objectContaining({ text: lines.remindYou, buttons })]);
   }

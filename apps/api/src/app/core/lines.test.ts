@@ -62,6 +62,7 @@ test('a private memory names each moment with its date, and only the voice says 
 
 test('the private memory lines read as the spike writes them', () => {
   expect(lines.weekMemory('Sofia and Nikos shared a school day.')).toBe('This week in the family 💛\nSofia and Nikos shared a school day.');
+  expect(lines.weekMemory('Sofia shared the beach.', lines.thenLabel)).toBe('Then and now in the family 💛\nSofia shared the beach.');
   expect(lines.weekShared([moment(), moment({ by: nikos }), moment()])).toBe('Sofia and Nikos shared 3 moments.');
   expect(lines.remindYou).toBe('What does it remind you of?');
   expect(lines.familyReplies.map(([emoji, words]) => `${emoji} ${words}`)).toEqual(['❤️ Sending my love', '😊 That made me smile', '💛 I miss you all']);
