@@ -318,7 +318,7 @@ test('a photo, then a text 30 seconds later from the same sender: one bundle wit
   expect(family.moments[0].messageIds).toEqual([photoEvent.messageId, textEvent.messageId]);
 });
 
-test('a bare photo, a second bare photo, then a text: two moments, the first wordless at the next tick, and the text joins the second', async () => {
+test('two bare photos are two wordless moments at the next tick, and a text after them starts its own bundle', async () => {
   (ask as Mock)
     .mockResolvedValueOnce({ ...classification, title: 'A plate of pasta' })
     .mockResolvedValueOnce({ ...classification, title: 'Danae in the morning' });
@@ -332,22 +332,19 @@ test('a bare photo, a second bare photo, then a text: two moments, the first wor
   expect(bundles).toHaveLength(2);
 
   await tick();
-  expect(ask).toHaveBeenCalledTimes(1);
-  expect(family.moments).toHaveLength(1);
-
-  advance(30_000);
-  const textEvent = event({ text: 'Η Δανάη το πρωί' });
-  await capture.handle(textEvent, family, ctx);
-  await tick();
-
-  expect(family.moments).toHaveLength(2);
+  expect(ask).toHaveBeenCalledTimes(2);
   const [food, danae] = family.moments;
   expect(food).toMatchObject({ messageIds: [foodEvent.messageId], photo: { id: 'photo-food' }, text: 'A plate of pasta', wordless: true });
-  expect(danae).toMatchObject({ messageIds: [danaeEvent.messageId, textEvent.messageId], photo: { id: 'photo-danae' }, text: 'Η Δανάη το πρωί' });
-  expect(danae).not.toHaveProperty('wordless');
+  expect(danae).toMatchObject({ messageIds: [danaeEvent.messageId], photo: { id: 'photo-danae' }, text: 'Danae in the morning', wordless: true });
+
+  advance(30_000);
+  await capture.handle(event({ text: 'Η Δανάη το πρωί' }), family, ctx);
+  await tick();
+  expect(family.moments).toHaveLength(2);
+  expect(bundles).toHaveLength(1);
 });
 
-test('a 3-photo album with one caption is one moment with the first photo and the caption, and a photo outside the album starts its own bundle', async () => {
+test('a 3-photo album with one caption is one moment with the first photo and the caption, and a photo outside the album is its own moment', async () => {
   (ask as Mock).mockResolvedValue(classification);
   transport.files.set('photo-1', { data: Buffer.from('1'), mimeType: 'image/jpeg' });
   const album = [
@@ -360,17 +357,18 @@ test('a 3-photo album with one caption is one moment with the first photo and th
 
   await capture.handle(event({ photo: { id: 'photo-4' } }), family, ctx);
   expect(bundles).toHaveLength(2);
+  transport.files.set('photo-4', { data: Buffer.from('4'), mimeType: 'image/jpeg' });
   await tick();
 
-  expect(ask).toHaveBeenCalledTimes(1);
-  expect(family.moments).toHaveLength(1);
+  expect(ask).toHaveBeenCalledTimes(2);
+  expect(family.moments).toHaveLength(2);
   expect(family.moments[0]).toMatchObject({
     messageIds: album.map((albumEvent) => albumEvent.messageId),
     photo: { id: 'photo-1' },
     text: 'Maria on her first day',
   });
-  expect(bundles).toHaveLength(1);
-  expect(bundles[0].events[0].photo).toEqual({ id: 'photo-4' });
+  expect(family.moments[1]).toMatchObject({ photo: { id: 'photo-4' } });
+  expect(bundles).toEqual([]);
 });
 
 test('a tick between two messages of a captioned album keeps them in one bundle, and a tick after the grace closes it', async () => {
