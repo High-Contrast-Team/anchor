@@ -86,6 +86,33 @@ export async function captionFor(label: string, moments: Moment[], tag?: string)
   return undefined;
 }
 
+const STORY_SCHEMA = { type: 'object', properties: { story: { type: 'string' } }, required: ['story'] };
+
+// "Tell me more" tells the moments as a short story read aloud; the fixed story covers a failed call or a story with a number, a name, or a
+// quote that the moments do not hold
+export async function storyFor(moments: Moment[]): Promise<string> {
+  const facts = moments.map((moment) => {
+    const stories = moment.stories.map((story) => `${story.by.name}: «${cut(story.text, 200)}»`).join(' ');
+    return `- ${lines.sharedBy(moment, 300)} (${dateOf(moment)})${moment.description ? ` ${moment.description}` : ''}${stories ? ` Stories: ${stories}` : ''}`;
+  });
+  const prompt = [
+    "You are Anchor, the keeper of this family's photos and stories. You are not a person.",
+    'Tell a grandparent what the family shared, as a short story that Anchor reads aloud: at most 4 short sentences, at most 350 characters, in plain, warm English.',
+    'Follow the order of the moments. Name who shared each one, and say what each photo shows when the facts say it.',
+    'Mention a date only when it tells when something happened. Never judge the photos with words such as "charming" or "special".',
+    'Use only these facts. Never invent a fact, a feeling, or a memory, and never write "I remember" or "I love".',
+    ...facts,
+  ].join('\n');
+  try {
+    const answer = await ask<{ story?: unknown }>(prompt, STORY_SCHEMA, { fast: true });
+    const story = cut(valid.text(answer?.story), 600);
+    if (story && grounded(story, facts)) return story;
+  } catch (error) {
+    logger.warn(`the story call failed: ${error}`);
+  }
+  return lines.weekStory(moments);
+}
+
 const groupCaption = async (label: string, tag: string, moments: Moment[]) => {
   const caption = await captionFor(label, moments, tag);
   return caption ? `${caption}\n${lines.collectionReply}` : lines.collectionCaption(label, tag, moments);

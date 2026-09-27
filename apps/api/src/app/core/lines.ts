@@ -75,8 +75,11 @@ export const lines = {
   remindYou: 'What does it remind you of?',
   // the voice says the description after the sharer's words, so a member who cannot see the picture well hears what it shows
   spokenMoment: (moment: Moment) => [sharedBy(moment), moment.description].filter(Boolean).join('\n'),
-  aboutMoments: (moments: Moment[], spoken = false) =>
-    moments.flatMap((moment) => [`${sharedBy(moment, 120)} · ${dateOf(moment)}`, ...(spoken && moment.description ? [moment.description] : [])]).join('\n'),
+  // the fixed story of "Tell me more": one sentence per sharer, in the order of the memory
+  weekStory: (moments: Moment[]) =>
+    [...new Set(moments.map((moment) => moment.by.name))]
+      .map((name) => `${name} shared ${and(moments.filter((moment) => moment.by.name === name).map((moment) => moment.title))}.`)
+      .join(' '),
   // the team writes the one-tap replies, so the model never puts words in the member's mouth
   familyReplies: [
     ['❤️', 'Sending my love'],
