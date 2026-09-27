@@ -5,7 +5,7 @@ import type { Context, Family, Feature, Incoming, Moment } from '../../core/type
 import { unlog } from '../talk';
 import { classify } from './classify';
 import type { Classification } from './classify';
-import { BUNDLE_GAP_MS, hasPicture, isClosed, passesRules, typedText, worthClassifying } from './filter';
+import { BUNDLE_GAP_MS, hasPicture, isClosed, passesRules, pictureOf, typedText, worthClassifying } from './filter';
 import type { Bundle } from './filter';
 
 const logger = new Logger('Capture');
@@ -188,6 +188,47 @@ async function classifyAndSave(bundle: Bundle, family: Family, ctx: Context) {
   await react(ctx, family, family.chatId, bundle.events[0].messageId, '\u2764');
 }
 
+// the user's call of 2026-09-27: a photo is saved at once, so words from the same sender within 5 minutes complete that moment instead of starting
+// a bundle of their own; a photo that is still in classification finishes first
+async function photoToComplete(event: Incoming, family: Family, ctx: Context): Promise<Moment | undefined> {
+  const classifying = bundles.find((bundle) => bundle.family === family && bundle.sender.id === event.sender.id && bundle.closing && bundle.events.some(hasPicture));
+  if (classifying) await classifying.closing;
+  const now = ctx.now();
+  return family.moments
+    .filter((moment) => moment.by.id === event.sender.id && pictureOf(moment) && now - moment.savedAt <= BUNDLE_GAP_MS)
+    .filter((moment) => !event.replyTo || moment.messageIds.includes(event.replyTo))
+    .at(-1);
+}
+
+// the memory already went out, so the words only update the record: the text, then the title, the description, and the verdict of the photo with them
+async function complete(moment: Moment, event: Incoming, family: Family, ctx: Context) {
+  const words = event.text?.trim() ?? '';
+  moment.messageIds.push(event.messageId);
+  if (event.voice) moment.voice ??= event.voice;
+  if (words) {
+    moment.text = moment.wordless ? words : `${moment.text}\n${words}`;
+    delete moment.wordless;
+  }
+  ctx.store.save();
+  const picture: Incoming = { ...event, messageId: moment.messageIds[0], photo: moment.photo, video: moment.video, text: undefined, voice: undefined };
+  let classification: Classification | undefined;
+  try {
+    classification = await classify({ family, sender: event.sender, events: [picture, event] }, ctx.transport(family.id));
+  } catch (error) {
+    logger.warn(`the classification of the words for moment ${moment.id} failed: ${error}`);
+  }
+  if (!classification || !family.moments.includes(moment)) return;
+  if (classification.verdict === 'sensitive') moment.sensitive = true;
+  if (classification.verdict === 'family_moment' || classification.verdict === 'sensitive') {
+    moment.title = classification.title;
+    moment.people = classification.people;
+    moment.eventDate = classification.eventDate;
+    if (classification.tags.length) moment.tags = classification.tags;
+    if (classification.description) moment.description = classification.description;
+  }
+  ctx.store.save();
+}
+
 export const capture: Feature = {
   name: 'capture',
   async handle(event, family, ctx) {
@@ -213,6 +254,11 @@ export const capture: Feature = {
         return true;
       }
       open.sealed = true;
+    }
+    const followed = hasPicture(event) ? undefined : await photoToComplete(event, family, ctx);
+    if (followed) {
+      await complete(followed, event, family, ctx);
+      return true;
     }
     bundles.push({ family, sender: event.sender, events: [event] });
     return true;
