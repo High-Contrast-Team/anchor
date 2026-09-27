@@ -1,6 +1,5 @@
 import { Logger } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
-import { dayIndex, slotIn, WEEK_MS } from '../core/clock';
 import { dateOf, lines } from '../core/lines';
 import { shortId } from '../core/offers';
 import { byPriority } from '../core/priority';
@@ -9,11 +8,10 @@ import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Mem
 import { ask, valid } from '../model/model';
 import { react } from './capture/capture';
 import { ADDRESS, asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
-import { captionFor, eventTime, storyFor } from './memories';
+import { captionFor, storyFor } from './memories';
 import { nextSteps } from './members';
 
 const MAX_MOMENTS = 5;
-const YEAR_MS = 365 * 86_400_000;
 const KINDS = ['story', 'unsure', 'question', 'request', 'other'] as const;
 const REPLY_SCHEMA = {
   type: 'object',
@@ -28,39 +26,20 @@ const logger = new Logger('Invitations');
 
 type Reading = { kind: (typeof KINDS)[number]; transcript: string };
 
-// the spike of 2026-09-26, decisions 6 and 10: up to 5 moments of the past week, the member's own included, oldest first; a week with no moment
-// takes the 5 newest, so a run of more than 7 jumps still gets a memory
-function weekOf(family: Family, member: Member, slot: number): Moment[] {
+// the user's call of 2026-09-27: the 5 newest photos of the family chat, the member's own included, oldest first; a hidden or a kept-quiet
+// moment stays out, and so does a photo from a day that /fastforward now undid
+function latestOf(family: Family, member: Member, now: number): Moment[] {
   const hidden = new Set(member.hidden);
-  const shown = family.moments
-    .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && moment.savedAt <= slot)
-    .sort((a, b) => b.savedAt - a.savedAt);
-  const week = shown.filter((moment) => slot - moment.savedAt <= WEEK_MS);
-  return (week.length ? week : shown).slice(0, MAX_MOMENTS).reverse();
-}
-
-// a photo dated a year or more before the family shared it, such as a scan of 1975
-const oldPhoto = (moment: Moment) => eventTime(moment) <= moment.savedAt - YEAR_MS;
-
-// the spike of 2026-09-27: when the week holds new moments, one older photo of the record, the one the member has seen least, leads as "then"
-function memoryOf(family: Family, member: Member, slot: number): { moments: Moment[]; label: string } {
-  const week = weekOf(family, member, slot);
-  const now = week.filter((moment) => slot - moment.savedAt <= WEEK_MS && !oldPhoto(moment));
-  const hidden = new Set(member.hidden);
-  const seen = (moment: Moment) => moment.returns[member.id]?.count ?? 0;
-  const older = (moment: Moment) => slot - moment.savedAt > WEEK_MS || oldPhoto(moment);
-  const [then] = now.length
-    ? family.moments
-        .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && pictureOf(moment) && moment.savedAt <= slot && older(moment))
-        .sort((a, b) => seen(a) - seen(b) || eventTime(a) - eventTime(b))
-    : [];
-  return then ? { moments: [then, ...now.slice(1 - MAX_MOMENTS)], label: lines.thenLabel } : { moments: week, label: lines.weekLabel };
+  return family.moments
+    .filter((moment) => !moment.sensitive && !hidden.has(moment.id) && pictureOf(moment) && moment.savedAt <= now)
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .slice(0, MAX_MOMENTS)
+    .reverse();
 }
 
 // the member who shared the most moments other than this member, and the earlier sharer on a tie; the moments come oldest first
 function topSharer(moments: Moment[], member: Member): Person | undefined {
-  // an old photo is not news of this week, so it never picks whom Sofia asks for a call
-  const others = moments.filter((moment) => moment.by.id !== member.id && !oldPhoto(moment));
+  const others = moments.filter((moment) => moment.by.id !== member.id);
   const count = (id: string) => others.filter((moment) => moment.by.id === id).length;
   return others.reduce<Person | undefined>((top, moment) => (!top || count(moment.by.id) > count(top.id) ? moment.by : top), undefined);
 }
@@ -396,26 +375,28 @@ export const invitations: Feature = {
     const member = family.members.find((person) => person.id === event.sender.id);
     return member ? inPrivate(event, family, member, ctx) : false;
   },
+};
 
-  // decisions 6 and 10: every started member with family moments gets the memory of the week at each 11:00, also after each /fastforward 1
+// the user's call of 2026-09-27: every new photo in the family chat sends the latest photos to every started member but the poster, so no
+// clock jump is needed; it ticks after capture, so a photo that capture saves in a tick counts in that tick
+export const latestPhotos: Feature = {
+  name: 'latestPhotos',
   async tick(family, window, ctx) {
-    const slot = slotIn(window, 11);
-    if (slot === undefined) return;
-    const day = dayIndex(slot);
+    const posted = family.moments.filter((moment) => moment.savedAt > window.from && moment.savedAt <= window.to && !moment.sensitive && pictureOf(moment));
+    if (!posted.length) return;
+    const posters = new Set(posted.map((moment) => moment.by.id));
     const captions = new Map<string, Promise<string | undefined>>();
-    const caption = (moments: Moment[], label: string) => {
+    const caption = (moments: Moment[]) => {
       const key = moments.map((moment) => moment.id).join();
-      if (!captions.has(key)) captions.set(key, captionFor(label, moments));
+      if (!captions.has(key)) captions.set(key, captionFor(lines.weekLabel, moments));
       return captions.get(key);
     };
-    const due = family.members.filter((member) => member.started && member.choices.moments && member.lastInvitationDay !== day);
+    const due = family.members.filter((member) => member.started && member.choices.moments && !posters.has(member.id));
     await Promise.all(
       due.map(async (member) => {
-        member.invitation = undefined;
-        member.lastInvitationDay = day;
-        const { moments, label } = memoryOf(family, member, slot);
-        if (!moments.length) return ctx.store.save();
-        const head = moments.length > 1 ? lines.weekMemory((await caption(moments, label)) ?? lines.weekShared(moments), label) : undefined;
+        const moments = latestOf(family, member, window.to);
+        if (!moments.length) return;
+        const head = moments.length > 1 ? lines.weekMemory((await caption(moments)) ?? lines.weekShared(moments)) : undefined;
         await deliver(family, member, moments, ctx, head);
       }),
     );

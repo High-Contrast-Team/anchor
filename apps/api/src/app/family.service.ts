@@ -9,7 +9,7 @@ import { echoes } from './features/echoes';
 import { fastforward } from './features/fastforward';
 import { intents } from './features/intents';
 import { intro } from './features/intro';
-import { invitations } from './features/invitations';
+import { invitations, latestPhotos } from './features/invitations';
 import { members } from './features/members';
 import { memories } from './features/memories';
 import { reminders } from './features/reminders/reminders';
@@ -21,7 +21,7 @@ import { TelegramTransport } from './transports/telegram';
 
 // scams sits before members and invitations, so a forwarded "stop" or a forward during an open invitation reaches the scam check;
 // transcripts sits first, so every feature reads a voice note as its transcript; talk sits next, so it logs every group message
-export const FEATURES: Feature[] = [transcripts, talk, intro, fastforward, forget, reminders, scams, members, invitations, memories, intents, capture, shares, echoes, calls];
+export const FEATURES: Feature[] = [transcripts, talk, intro, fastforward, forget, reminders, scams, members, invitations, memories, intents, capture, latestPhotos, shares, echoes, calls];
 
 // v2, section 4.8: restartWindow collapses the running window to empty at the tick that follows the call, never the in-flight one
 export function nextWindow(from: number, to: number, restart: boolean): Window {

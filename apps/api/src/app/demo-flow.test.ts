@@ -256,7 +256,7 @@ test('on cue: /fastforward 7 then /memory posts one week ago at once, before the
   expect(transport.sent.at(-1)?.message).toEqual({ photo: { id: 'photo-maria' }, text: lines.memoryCaption(label, family.moments[0]) });
 });
 
-test('the stage flow: two posts, /fastforward 1, a private memory for every started member, one-tap replies, and the same memory on each jump', async () => {
+test('the stage flow: each photo sends the latest photos to every started member but the poster, then one-tap replies, and a jump sends nothing', async () => {
   const { family, transport, say, whisper, tick } = setup();
   for (const person of [sofia, eleni, alexandros]) await whisper(person, { text: '/start -100' });
   await whisper(sofia, { button: 'set:voice', messageId: transport.sent[0].messageId });
@@ -281,15 +281,13 @@ test('the stage flow: two posts, /fastforward 1, a private memory for every star
     [castle.messageIds[0], '\u2764'],
   ]);
 
-  // steps 2 and 3: only Eleni sees the jump, and every started member gets the album, then one message with the three buttons
-  await say(eleni, { text: '/fastforward 1', ephemeral: true });
-  expect(transport.sent.at(-1)?.message).toMatchObject({ onlyFor: eleni.id });
-  await tick();
+  // steps 2 and 3: each photo sent the latest photos to every started member but its poster; the last memory is the album of both
   const album = {
     album: [{ photo: { id: 'photo-beach' } }, { photo: { id: 'photo-castle' } }],
     text: lines.weekMemory('Eleni and Alexandros shared a day at the beach.'),
   };
-  for (const person of [sofia, eleni, alexandros]) {
+  expect(toMember(alexandros).slice(-2).map(({ message }) => message.text)).toEqual(["Eleni shared: «Sunday at the beach with the kids»", lines.remindYou]);
+  for (const person of [sofia, eleni]) {
     const id = invitationOf(person)?.id;
     const buttons = [
       { label: 'Tell me more', data: `inv:more:${id}` },
@@ -345,31 +343,33 @@ test('the stage flow: two posts, /fastforward 1, a private memory for every star
   expect(transport.edits.at(-1)?.change).toEqual({ buttons: [{ label: '✅ Sent to Eleni', data: 'inv:done:-' }] });
   expect(toGroup().at(-1)).toEqual({ text: 'Sofia: «Love you too ❤️»', replyTo: replyId });
 
-  // two more jumps with no new post: every member gets the memory again, and no echo and no group memory posts
+  // two jumps with no new post send no memory, no echo, and no group memory
   const posted = toGroup().length;
-  for (let jump = 2; jump <= 3; jump++) {
-    const before = transport.sent.length;
+  const before = transport.sent.length;
+  for (let jump = 1; jump <= 2; jump++) {
     await say(eleni, { text: '/fastforward 1', ephemeral: true });
     await tick();
-    const sent = transport.sent.slice(before).filter(({ chatId }) => chatId !== '-100');
-    for (const person of [sofia, eleni, alexandros]) {
-      expect(sent.filter(({ chatId }) => chatId === person.id).map(({ message }) => message.album ?? message.text)).toEqual([album.album, lines.remindYou]);
-    }
   }
+  expect(transport.sent.slice(before).filter(({ chatId }) => chatId !== '-100')).toEqual([]);
   expect(toGroup()).toHaveLength(posted);
 });
 
-test('a rehearsal jump, /fastforward now, and the stage jump to the same next day still send the memory', async () => {
+test('after a rehearsal jump and /fastforward now, the next photo still sends the memory', async () => {
   const { transport, say, whisper, tick } = setup();
   await whisper(sofia, { text: '/start -100' });
+  const memories = () => transport.sent.filter(({ chatId, message }) => chatId === sofia.id && message.text === lines.remindYou).length;
   await say(eleni, { text: 'Sunday at the beach with the kids', photo: { id: 'photo-beach' } });
   vi.setSystemTime(Date.now() + 2000);
   await tick();
-  const memories = () => transport.sent.filter(({ chatId, message }) => chatId === sofia.id && message.text === lines.remindYou).length;
+  expect(memories()).toBe(1);
 
-  for (const command of ['/fastforward 1', '/fastforward now', '/fastforward 1']) {
+  for (const command of ['/fastforward 1', '/fastforward now']) {
     await say(eleni, { text: command, ephemeral: true });
     await tick();
   }
+  vi.setSystemTime(Date.now() + 2000);
+  await say(eleni, { text: 'The sandcastle we built', photo: { id: 'photo-castle' } });
+  vi.setSystemTime(Date.now() + 2000);
+  await tick();
   expect(memories()).toBe(2);
 });

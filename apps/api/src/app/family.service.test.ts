@@ -113,6 +113,7 @@ test('FEATURES keeps the order of spec 5.4', () => {
     'memories',
     'intents',
     'capture',
+    'latestPhotos',
     'shares',
     'echoes',
     'calls',

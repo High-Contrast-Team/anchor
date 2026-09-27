@@ -12,7 +12,7 @@ import { openStore } from '../core/store';
 import { Blocked, type Choices, type Context, type Family, type Incoming, type Invitation, type Moment } from '../core/types';
 import { ask, speak } from '../model/model';
 import { asksAnchor } from './capture/filter';
-import { invitations, sendMe, sendNow } from './invitations';
+import { invitations, latestPhotos, sendMe, sendNow } from './invitations';
 
 const DEFAULT_CHOICES: Choices = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
@@ -103,7 +103,7 @@ const receive = (event: Incoming) =>
 
 const tickAt = (time: number) => {
   now = time;
-  return invitations.tick(family, { from: time - 60_000, to: time }, ctx);
+  return latestPhotos.tick?.(family, { from: time - 4 * 3_600_000, to: time }, ctx);
 };
 
 // a tap on a button of the message with this id
@@ -133,7 +133,7 @@ test('a group event is left to the members feature', async () => {
   expect(await receive(inGroup({ text: '/memory' }))).toBe(false);
 });
 
-test('the 11:00 tick sends the photo with its sharer, then the question with the three buttons, once a day', async () => {
+test('a new photo sends the photo with its sharer, then the question with the buttons, once for each new photo', async () => {
   add();
   await tickAt(at(25, 11));
 
@@ -151,14 +151,13 @@ test('the 11:00 tick sends the photo with its sharer, then the question with the
     name: 'Nikos',
     started: true,
     choices: DEFAULT_CHOICES,
-    lastInvitationDay: dayIndex(at(25, 11)),
     seenAt: at(25, 8),
     invitation: { id, momentId: 'm1', momentIds: ['m1'], shareAsked: false, helped: false },
   });
 
   const save = vi.spyOn(ctx.store, 'save');
   now = at(25, 11, 30);
-  await invitations.tick(family, { from: at(25, 10), to: now }, ctx);
+  await latestPhotos.tick?.(family, { from: at(25, 10), to: now }, ctx);
   expect(transport.sent).toHaveLength(2);
   expect(save).not.toHaveBeenCalled();
 });
@@ -190,46 +189,17 @@ test('a wordless photo is captioned by its title, never as a quote', async () =>
   expect(transport.sent[0].message).toEqual({ photo: { id: 'photo-57' }, text: "Sofia shared a photo: Maria's first day at school" });
 });
 
-test('a moment with a video goes out as the video, and a moment with no picture as one message', async () => {
+test('a moment with a video goes out as the video, and a new moment with no picture sends nothing', async () => {
   add({ video: { id: 'video-57' } });
   await tickAt(at(25, 11));
   expect(transport.sent[0].message).toEqual({ video: { id: 'video-57' }, text: sofiaSaid });
 
-  family.moments = [build({ photo: undefined })];
+  family.moments = [build({ photo: undefined, savedAt: at(26, 10) })];
   await tickAt(at(26, 11));
-  expect(transport.sent.slice(2).map(({ message }) => message.text)).toEqual([`${sofiaSaid}\n${lines.remindYou}`]);
+  expect(transport.sent).toHaveLength(2);
 });
 
-test('an older photo of the record leads the memory as "then", the one the member has seen least, and the caption says then and now', async () => {
-  vi.mocked(ask).mockResolvedValue({ caption: 'Sofia and Eleni shared old and new photos.' });
-  add({ id: 'beach', savedAt: at(10, 12), photo: { id: 'photo-beach' }, returns: { '7': { count: 2 } } });
-  add({ id: 'wedding', savedAt: at(12, 12), photo: { id: 'photo-wedding' } });
-  add({ id: 'scan', by: eleni, savedAt: at(25, 9), eventDate: '1975-08-01', photo: { id: 'photo-1975' }, returns: { '7': { count: 1 } } });
-  add({ id: 'm2', by: eleni, savedAt: at(24, 12), photo: { id: 'photo-99' } });
-  add();
-  await tickAt(at(25, 11));
-
-  expect(vi.mocked(ask).mock.calls[0][0]).toContain('with the label "Then and now in the family": 3 family moments.');
-  const album = ['photo-wedding', 'photo-99', 'photo-57'].map((photo) => ({ photo: { id: photo } }));
-  expect(transport.sent[0].message).toEqual({ album, text: 'Then and now in the family 💛\nSofia and Eleni shared old and new photos.' });
-  expect(nikos().invitation).toMatchObject({ momentId: 'm1', momentIds: ['wedding', 'm2', 'm1'] });
-});
-
-test('an old photo shared this week can be the "then", and it does not count for the call question', async () => {
-  const alexandros = { id: '3', name: 'Alexandros' };
-  add({ id: 'm2', by: eleni, savedAt: at(24, 12), photo: { id: 'photo-99' } });
-  add();
-  add({ id: 'scan', by: alexandros, savedAt: at(25, 9), eventDate: '1975-08-01', photo: { id: 'photo-1975' } });
-  add({ id: 'castle', by: alexandros, savedAt: at(25, 10), photo: { id: 'photo-castle' } });
-  await tickAt(at(25, 11));
-
-  expect(transport.sent[0].message.album?.map((item) => ('photo' in item ? item.photo.id : ''))).toEqual(['photo-1975', 'photo-99', 'photo-57', 'photo-castle']);
-  expect(transport.sent[0].message.text).toBe('Then and now in the family 💛\nAlexandros, Eleni, and Sofia shared 4 moments.');
-  // Eleni, Sofia, and Alexandros tie with one moment of this week each, and Eleni shared first
-  expect(nikos().invitation?.momentId).toBe('m2');
-});
-
-test('the memory of the week holds up to 5 newest moments, the own ones too, and the photos form an album oldest first', async () => {
+test('the memory holds the 5 newest photos of the family chat, the own ones too, as an album oldest first', async () => {
   vi.mocked(ask).mockResolvedValue({ caption: 'Sofia and Eleni shared school and lunch.' });
   add({ id: 'old', savedAt: at(17, 12), photo: undefined });
   add({ id: 'quiet', sensitive: true, savedAt: at(24, 12) });
@@ -243,7 +213,7 @@ test('the memory of the week holds up to 5 newest moments, the own ones too, and
   await tickAt(at(25, 11));
 
   const [prompt] = vi.mocked(ask).mock.calls[0];
-  expect(prompt).toContain('with the label "This week in the family": 5 family moments.');
+  expect(prompt).toContain('with the label "The latest from the family": 5 family moments.');
   const caption = lines.weekMemory('Sofia and Eleni shared school and lunch.');
   const { id } = nikos().invitation ?? { id: '' };
   expect(messages()).toEqual([
@@ -255,41 +225,17 @@ test('the memory of the week holds up to 5 newest moments, the own ones too, and
   expect(nikos().seenAt).toBe(at(25, 10));
 });
 
-test('a week with one photo and a text moment sends the photo with the caption, and the voice says the caption before the question', async () => {
+test('a text moment stays out of the memory, which holds photos only', async () => {
   nikos().choices.voice = true;
   add({ id: 'text', by: eleni, photo: undefined, text: 'Lunch at grandma’s on Sunday', savedAt: at(24, 12) });
   add();
   await tickAt(at(25, 11));
 
-  const caption = lines.weekMemory(lines.weekShared(family.moments));
-  expect(caption).toBe('This week in the family 💛\nEleni and Sofia shared 2 moments.');
-  expect(speak).toHaveBeenCalledWith(`${caption}\n${lines.remindYou}`, STYLE);
+  expect(speak).toHaveBeenCalledWith(`${sofiaSaid}\n${lines.remindYou}`, STYLE);
   expect(messages()).toEqual([
-    ['7', { photo: { id: 'photo-57' }, text: caption }],
+    ['7', { photo: { id: 'photo-57' }, text: sofiaSaid }],
     ['7', { text: lines.remindYou, buttons: memoryButtons(nikos().invitation?.id ?? ''), voice: { wav } }],
   ]);
-});
-
-test('a week with no moment takes the 5 newest, and an empty record sends nothing', async () => {
-  await tickAt(at(25, 11));
-  expect(transport.sent).toEqual([]);
-  expect(saved()?.members[0].lastInvitationDay).toBe(dayIndex(at(25, 11)));
-
-  add({ id: 'older', savedAt: at(2, 12), photo: undefined });
-  add({ id: 'old', savedAt: at(10, 12) });
-  await tickAt(at(26, 11));
-  expect(nikos().invitation?.momentIds).toEqual(['older', 'old']);
-});
-
-test('every new day sends the memory again, with a new id, and the open one closes without a message', async () => {
-  const moment = add();
-  await tickAt(at(25, 11));
-  const first = nikos().invitation?.id;
-  await tickAt(at(26, 11));
-  await tickAt(at(27, 11));
-  expect(transport.sent).toHaveLength(6);
-  expect(nikos().invitation?.id).not.toBe(first);
-  expect(moment.returns['7']).toEqual({ count: 3 });
 });
 
 test('every started member with family moments gets the memory, and one caption call serves the same week', async () => {
@@ -312,7 +258,7 @@ test('a member who blocked Anchor stops getting memories, the memory closes, and
   add();
   await tickAt(at(25, 11));
   const record = saved();
-  expect(record?.members[0]).toMatchObject({ started: false, lastInvitationDay: dayIndex(at(25, 11)) });
+  expect(record?.members[0]).toMatchObject({ started: false });
   expect(record?.members[0].invitation).toBeUndefined();
   expect(record?.moments[0].returns['7'].count).toBe(1);
 });
@@ -398,7 +344,7 @@ test('a warm answer goes to the group as a reply to the family message, collapse
   expect(family.spokenFor).toEqual({ '500': '7', [posts[0].messageId]: '7' });
 });
 
-test('"No, thanks" on the call question removes its buttons, and a memory of only own moments asks no call', async () => {
+test('"No, thanks" on the call question removes its buttons', async () => {
   add({ by: eleni });
   await tickAt(at(25, 11));
   const { id } = nikos().invitation ?? { id: '' };
@@ -406,18 +352,11 @@ test('"No, thanks" on the call question removes its buttons, and a memory of onl
   await tap(`inv:nocall:${id}`, transport.sent[3].messageId);
   expect(edits().at(-1)).toEqual(['7', transport.sent[3].messageId, { buttons: [] }]);
   expect(messages().filter(([chatId]) => chatId === '-100')).toEqual([['-100', { text: 'Nikos: «Sending my love ❤️»', replyTo: '57' }]]);
-
-  family.moments = [build({ by: { id: '7', name: 'Nikos' } })];
-  await tickAt(at(26, 11));
-  const own = nikos().invitation?.id;
-  const sent = transport.sent.length;
-  await tap(`inv:say1:${own}`, transport.sent.at(-1)?.messageId ?? '');
-  expect(messages().slice(sent)).toEqual([['-100', { text: 'Nikos: «That made me smile 😊»', replyTo: '57' }]]);
 });
 
 test('"Yes, ask" when no other sharer is left removes the buttons and posts nothing', async () => {
   add({ by: eleni });
-  add({ id: 'own', by: { id: '7', name: 'Nikos' }, savedAt: at(25, 9) });
+  add({ id: 'own', by: { id: '7', name: 'Nikos' }, savedAt: at(25, 6) });
   await tickAt(at(25, 11));
   const { id } = nikos().invitation ?? { id: '' };
   await tap(`inv:say0:${id}`, transport.sent[1].messageId);
@@ -441,7 +380,7 @@ test('"Tell me more" shows a wait at once, tells the week as a short story, play
   nikos().choices.voice = true;
   add({ description: 'The photo shows a girl at a school gate.', voice: { id: 'voice-57' } });
   add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, savedAt: at(24, 9), text: 'Sunday lunch', title: 'Sunday lunch' });
-  add({ id: 'm3', by: eleni, photo: undefined, savedAt: at(24, 10), text: 'The cousins sang', title: 'the cousins singing', voice: { id: 'voice-99' } });
+  add({ id: 'm3', by: eleni, photo: { id: 'photo-98' }, savedAt: at(24, 10), text: 'The cousins sang', title: 'the cousins singing', voice: { id: 'voice-99' } });
   await tickAt(at(25, 11));
   const story = 'Eleni shared Sunday lunch, where the cousins sang. Sofia shared Maria on her first day at school, at the school gate.';
   vi.mocked(ask).mockResolvedValue({ story });
@@ -491,7 +430,7 @@ test('a story with a fact that the moments do not hold, or a failed call, gives 
 
 test('"Don\'t show me these again" hides the moments for this member only, and the family still sees them', async () => {
   const moment = add();
-  add({ id: 'm2', by: eleni, photo: undefined, text: 'Sunday lunch', savedAt: at(24, 9) });
+  add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, text: 'Sunday lunch', savedAt: at(24, 9) });
   await tickAt(at(25, 11));
   const { id } = nikos().invitation ?? { id: '' };
   await tap(`inv:more:${id}`, transport.sent[1].messageId);
@@ -504,7 +443,7 @@ test('"Don\'t show me these again" hides the moments for this member only, and t
   expect(moment.sensitive).toBe(false);
 
   add({ id: 'm3', savedAt: at(25, 12) });
-  await tickAt(at(26, 11));
+  await tickAt(at(25, 14));
   expect(nikos().invitation?.momentIds).toEqual(['m3']);
 });
 
@@ -512,6 +451,7 @@ test('a tap on an older or closed memory removes the buttons of that message and
   add();
   await tickAt(at(25, 11));
   const { id: old } = nikos().invitation ?? { id: '' };
+  add({ id: 'm2', savedAt: at(26, 10) });
   await tickAt(at(26, 11));
   const sent = transport.sent.length;
 
@@ -798,16 +738,17 @@ test('"No, thanks" sends notShared, closes the invitation, and keeps no story', 
   expect(moment.stories).toEqual([]);
 });
 
-test('a reply whose call is still pending when the 11:00 slot replaces the memory sends no thanks', async () => {
+test('a reply whose call is still pending when a new photo replaces the memory sends no thanks', async () => {
   const old = invite(add());
   let answer: (value: unknown) => void;
-  vi.mocked(ask).mockReturnValue(new Promise((resolve) => (answer = resolve)));
+  vi.mocked(ask).mockReturnValueOnce(new Promise((resolve) => (answer = resolve)));
   const reply = receive(fromNikos({ text: 'She would not let go of my hand' }));
+  add({ id: 'm2', savedAt: at(26, 10), photo: { id: 'photo-99' } });
   await tickAt(at(26, 11));
   answer({ transcript: '', kind: 'story' });
 
   expect(await reply).toBe(true);
-  expect(transport.sent.map(({ message }) => message.text)).toEqual([sofiaSaid, lines.remindYou]);
+  expect(transport.sent.map(({ message }) => message.text)).toEqual([lines.weekMemory(lines.weekShared(family.moments)), lines.remindYou]);
   expect(old.story).toBeUndefined();
   expect(nikos().invitation).not.toBe(old);
 });
