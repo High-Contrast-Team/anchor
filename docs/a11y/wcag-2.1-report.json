@@ -1,0 +1,66 @@
+{
+  "generatedAt": "2026-09-27",
+  "commit": "99a6f2f7982b3ab1db04c2990702dedd0714e854",
+  "webUnchangedSince": "155621d430b5",
+  "standard": "WCAG 2.1 Level A and Level AA",
+  "axe": "4.13.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  "baseUrl": "http://127.0.0.1:4321",
+  "build": "astro preview of a production build",
+  "gate": {
+    "command": "pnpm a11y:web",
+    "exitCode": 0,
+    "violations": 0,
+    "note": "Fails only on axe violations. Ignores incomplete. Does not enable high contrast, resize text, or walk /app past first paint."
+  },
+  "meetsWcag21Aa": false,
+  "fixes": [
+    {
+      "id": "prose-primary-buttons",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "summary": "Get started and Back to Anchor are #443dff on #443dff (1:1) because .prose a overrides .btn-primary.",
+      "files": [
+        "apps/web/src/styles/tokens.css",
+        "apps/web/src/pages/how-it-works.astro",
+        "apps/web/src/pages/404.astro"
+      ],
+      "axe": "incomplete, so the gate stays green"
+    },
+    {
+      "id": "high-contrast",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "summary": "html.a11y-contrast fails color-contrast on all 10 public routes (174 nodes). Links 3.25:1, primary buttons 3.25:1, /app chips 1.21:1, secondary buttons 1.30:1. Skip link becomes 1:1. Text-size controls at 150% fail the same pairs.",
+      "files": ["apps/web/src/styles/tokens.css", "apps/web/src/components/AccessibilityWidget.css"]
+    },
+    {
+      "id": "demo-voice-and-log",
+      "criterion": "1.4.3, 2.1.1",
+      "impact": "serious",
+      "summary": "After Use a sample line, .voice-tag is 3.94:1 (#443dff on #cbc8ff) and the private chat log fails scrollable-region-focusable.",
+      "files": ["apps/web/src/components/MvpDemo.css", "apps/web/src/components/MvpDemo.tsx"]
+    },
+    {
+      "id": "phone-consent-overlap",
+      "criterion": "content obscured",
+      "impact": "serious",
+      "summary": "At 390px the accessibility toggle covers the consent heading, body, and Privacy link. The 5.75rem lift is shorter than the wrapped banner (~136px). Desktop 1280x900 clears it.",
+      "files": ["apps/web/src/components/AccessibilityWidget.css"]
+    },
+    {
+      "id": "design-ink",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "scope": "outside the public sitemap",
+      "summary": "/designs/ink .ink-action-index is 4.41:1 because of opacity 0.55. Linen, mist, and slate pass. Quiet is incomplete only because of a gradient.",
+      "files": ["apps/web/src/components/designs/ink/ink.css"]
+    }
+  ],
+  "passed": [
+    "Default theme gate: 10 routes, consent open and dismissed, 0 violations",
+    "Same routes at 390px, consent dismissed: 0 violations",
+    "Accessibility panel open on / in the default theme: 0 violations",
+    "320px reflow: scrollWidth equals clientWidth on all 10 public routes"
+  ]
+}
