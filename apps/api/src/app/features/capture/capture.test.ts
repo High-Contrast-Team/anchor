@@ -318,7 +318,7 @@ test('a photo, then a text 30 seconds later from the same sender: one bundle wit
   expect(family.moments[0].messageIds).toEqual([photoEvent.messageId, textEvent.messageId]);
 });
 
-test('two bare photos are two wordless moments at the next tick, and a text after them starts its own bundle', async () => {
+test('two bare photos are two wordless moments at the next tick, and a text after them completes the second', async () => {
   (ask as Mock)
     .mockResolvedValueOnce({ ...classification, title: 'A plate of pasta' })
     .mockResolvedValueOnce({ ...classification, title: 'Danae in the morning' });
@@ -338,10 +338,13 @@ test('two bare photos are two wordless moments at the next tick, and a text afte
   expect(danae).toMatchObject({ messageIds: [danaeEvent.messageId], photo: { id: 'photo-danae' }, text: 'Danae in the morning', wordless: true });
 
   advance(30_000);
-  await capture.handle(event({ text: 'Η Δανάη το πρωί' }), family, ctx);
+  const textEvent = event({ text: 'Η Δανάη το πρωί' });
+  await capture.handle(textEvent, family, ctx);
   await tick();
   expect(family.moments).toHaveLength(2);
-  expect(bundles).toHaveLength(1);
+  expect(family.moments[1]).toMatchObject({ messageIds: [danaeEvent.messageId, textEvent.messageId], text: 'Η Δανάη το πρωί' });
+  expect(family.moments[1]).not.toHaveProperty('wordless');
+  expect(bundles).toEqual([]);
 });
 
 test('a 3-photo album with one caption is one moment with the first photo and the caption, and a photo outside the album is its own moment', async () => {
@@ -736,4 +739,53 @@ test('flush closes every open bundle of the family at once, and waits for a bund
   await Promise.all([flushed, closing]);
   expect(family.moments.map(({ by }) => by.name).sort()).toEqual(['Eleni', 'Sofia']);
   expect(bundles.map((bundle) => bundle.family)).toEqual([other]);
+});
+
+test('words that follow a saved photo of the same sender within 5 minutes complete that moment and refresh its title and description', async () => {
+  (ask as Mock)
+    .mockResolvedValueOnce({ ...classification, title: 'A girl at a gate' })
+    .mockResolvedValueOnce({ ...classification, title: "Maria's first day at school", description: 'The photo shows a girl with a red backpack.' });
+  transport.files.set('photo-1', { data: Buffer.from('x'), mimeType: 'image/jpeg' });
+  const photo = event({ photo: { id: 'photo-1' } });
+  await capture.handle(photo, family, ctx);
+  await tick();
+  expect(family.moments[0]).toMatchObject({ wordless: true, title: 'A girl at a gate' });
+
+  advance(60_000);
+  const words = event({ text: 'Maria on her first day of school!' });
+  expect(await capture.handle(words, family, ctx)).toBe(true);
+  expect(family.moments).toHaveLength(1);
+  expect(family.moments[0]).toMatchObject({
+    text: 'Maria on her first day of school!',
+    title: "Maria's first day at school",
+    description: 'The photo shows a girl with a red backpack.',
+    messageIds: [photo.messageId, words.messageId],
+  });
+  expect(family.moments[0]).not.toHaveProperty('wordless');
+  expect(bundles).toEqual([]);
+  expect(vi.mocked(ask).mock.calls[1][0]).toContain('Maria on her first day of school!');
+});
+
+test('words that make the photo sensitive keep it out of every memory', async () => {
+  (ask as Mock).mockResolvedValueOnce(classification).mockResolvedValueOnce({ ...classification, verdict: 'sensitive' });
+  transport.files.set('photo-1', { data: Buffer.from('x'), mimeType: 'image/jpeg' });
+  await capture.handle(event({ photo: { id: 'photo-1' } }), family, ctx);
+  await tick();
+  await capture.handle(event({ text: 'Grandpa in the hospital last night' }), family, ctx);
+  expect(family.moments[0].sensitive).toBe(true);
+});
+
+test('words from another sender, after 5 minutes, or as a reply to another message start their own bundle', async () => {
+  (ask as Mock).mockResolvedValue(classification);
+  transport.files.set('photo-1', { data: Buffer.from('x'), mimeType: 'image/jpeg' });
+  await capture.handle(event({ photo: { id: 'photo-1' } }), family, ctx);
+  await tick();
+  const saved = { ...family.moments[0] };
+
+  await capture.handle(event({ sender: { id: 'eleni', name: 'Eleni' }, text: 'So lovely to see this' }), family, ctx);
+  await capture.handle(event({ text: 'And the cake was great', replyTo: 'm-other' }), family, ctx);
+  advance(BUNDLE_GAP_MS + 1000);
+  await capture.handle(event({ text: 'Much later words about the day' }), family, ctx);
+  expect(family.moments).toEqual([saved]);
+  expect(bundles).toHaveLength(3);
 });
