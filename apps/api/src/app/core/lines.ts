@@ -73,11 +73,23 @@ export const lines = {
   remindYou: 'What does it remind you of?',
   // the voice says the description after the sharer's words, so a member who cannot see the picture well hears what it shows
   spokenMoment: (moment: Moment) => [sharedBy(moment), moment.description].filter(Boolean).join('\n'),
-  // the fixed story of "Tell me more": one sentence per sharer, in the order of the memory
-  weekStory: (moments: Moment[]) =>
-    [...new Set(moments.map((moment) => moment.by.name))]
-      .map((name) => `${name} shared ${and(moments.filter((moment) => moment.by.name === name).map((moment) => moment.title))}.`)
-      .join(' '),
+  // "Tell me more", approved by the user on 2026-09-27: the top sharer first, each sharer's newest photo first, in the family's own words, with no
+  // model call, so the tap answers at once and nothing is invented
+  storyText: (moments: Moment[], name: string) => {
+    const own = (who: string) => moments.filter((moment) => moment.by.name === who).sort((a, b) => b.savedAt - a.savedAt);
+    const sharers = [...new Set(moments.map((moment) => moment.by.name))].sort(
+      (a, b) => own(b).length - own(a).length || own(b)[0].savedAt - own(a)[0].savedAt,
+    );
+    const photo = (moment: Moment) =>
+      `${moment.wordless ? `a photo of ${moment.title}.` : `«${clip(moment.text, 300)}»`}${moment.description ? ` ${moment.description}` : ''}`;
+    const shared = (who: string, moment: Moment) => `${who} shared${moment.wordless ? ' ' : ': '}${photo(moment)}`;
+    const blocks = sharers.map((who) => {
+      const [newest, ...before] = own(who);
+      const head = before.length ? `${who} shared ${before.length + 1} moments. The newest: ${photo(newest)}` : shared(who, newest);
+      return [head, ...before.map((moment) => `Before that, ${shared(who, moment)}`)].join('\n');
+    });
+    return ["Here's the story behind the photos 💛", ...blocks, `Would you like to send them a few words, ${name}?`].join('\n\n');
+  },
   // the team writes the one-tap replies, so the model never puts words in the member's mouth
   familyReplies: [
     ['❤️', 'Sending my love'],

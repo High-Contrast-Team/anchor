@@ -43,11 +43,20 @@ test('a moment with words keeps the quoting lines byte for byte', () => {
   );
 });
 
-test('the fixed story of "Tell me more" gives one sentence per sharer, in the order of the memory, with the titles of the moments', () => {
-  const radio = moment({ title: "Maria's radio gift" });
-  const lunch = moment({ by: nikos, title: 'Sunday lunch at the beach' });
-  const nap = moment({ title: 'a nap in the hammock' });
-  expect(lines.weekStory([radio, lunch, nap])).toBe("Sofia shared Maria's radio gift and a nap in the hammock. Nikos shared Sunday lunch at the beach.");
+test('the story of "Tell me more" puts the top sharer first, newest photo first, with their own words and the photo descriptions', () => {
+  const eleni = { id: '3', name: 'Eleni' };
+  const beach = moment({ by: eleni, text: 'Sunday lunch at the beach with the whole family!', savedAt: 1, description: 'The photo shows a table by the sea.' });
+  const earlier = moment({ by: nikos, text: "Maria's new drawing", savedAt: 2 });
+  const school = moment({ by: nikos, text: 'Maria on her first day of school!', savedAt: 3, description: 'The photo shows a girl with a red backpack.' });
+  const bare = moment({ by: sofia, wordless: true, title: 'a plate of pasta', savedAt: 4 });
+  expect(lines.storyText([beach, earlier, school, bare], 'Sofia')).toBe(
+    "Here's the story behind the photos 💛\n\n" +
+      'Nikos shared 2 moments. The newest: «Maria on her first day of school!» The photo shows a girl with a red backpack.\n' +
+      "Before that, Nikos shared: «Maria's new drawing»\n\n" +
+      'Sofia shared a photo of a plate of pasta.\n\n' +
+      'Eleni shared: «Sunday lunch at the beach with the whole family!» The photo shows a table by the sea.\n\n' +
+      'Would you like to send them a few words, Sofia?',
+  );
 });
 
 test('the private memory lines read as the spike writes them', () => {
