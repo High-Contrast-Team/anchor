@@ -2,7 +2,7 @@
 
 The 6-minute presentation is one story: the problem with the website on the screen, a day in Sofia's family with Anchor, and the close back on the website. The live part shows Anchor v2: Odisseas posts a photo in the family group, and Sofia gets a private memory of the latest family photos seconds later. Sofia answers with one tap, and Anchor asks Odisseas to call her.
 
-The demo runs against the live bot `@anchor_family_bot` on Cloud Run (`DEPLOY.md`). Each new photo in the group sends the memory to every started member except the poster, so the team can rehearse on the live bot without a clock jump. Every line and every staged message is in English.
+The demo runs against the live bot `@anchor_family_bot` on Cloud Run (`DEPLOY.md`). Each new photo in the group sends the memory to every started member, the poster too, so the team can rehearse on the live bot without a clock jump. Every line and every staged message is in English.
 
 ## Cast
 
@@ -22,7 +22,7 @@ Anchor takes every name from Telegram. Set the first name of each demo account t
 
 Check the bot and the group:
 
-1. Make sure that the live bot runs revision `anchor-bot-00032-pd4` or later. Revision `00032` sends every started member the 5 latest photos of the family chat on each new photo, except the poster. Revision `00031` tells "Tell me more" as a short story, and revision `00029` brings a family reply to Sofia's line back to her in private. The technical runbook names the current revision.
+1. Make sure that the live bot runs revision `anchor-bot-00032-pd4` or later. Revision `00032` sends every started member the 5 latest photos of the family chat on each new photo, and revision `00034` sends them to the poster too. Revision `00031` tells "Tell me more" as a short story, and revision `00029` brings a family reply to Sofia's line back to her in private. The technical runbook names the current revision.
 2. Use the group of the demo. A person is a member in one family only, so a new group sends Sofia's private replies to the old family.
 3. Make sure that Anchor is an admin in the group. Anchor sends an ephemeral message only as an admin. Promote Anchor at least one day before, because a move to a supergroup posts `intro` a second time.
 4. Turn "Remain anonymous" off for the admin who sends `/fastforward now` after a rehearsal that jumped. Anchor ignores commands from an anonymous admin.
@@ -31,7 +31,7 @@ Set the choices of each account. Each member sends "settings" to Anchor in priva
 
 1. Sofia: "Family moments now and then" and "Talk to me by voice" on, and "Call me on the phone" off. The calls tick rings a member with the call choice at the same 11:00 slot as the memory.
 2. Every tester: "Call me on the phone" off, for the same reason.
-3. Odisseas: "Offers to send my moments to the family" off, so no share offer shows on his phone. He gets no memory for his own photo.
+3. Odisseas: "Offers to send my moments to the family" off, so no share offer shows on his phone. Keep his "Family moments now and then" off, so his phone gets no memory of his own photo on stage.
 4. A member who started before PR 77 keeps "Family moments" off. Turn "Family moments" on for each tester who wants the memory.
 
 Reset and prepare, before the demo and before each rehearsal:
@@ -130,6 +130,6 @@ Caution: the stage flow needs no `/fastforward`. If a rehearsal moves the family
 
 1. Before each rehearsal, do the steps of "Reset and prepare".
 2. Run the full script on the live bot with a stopwatch, and write down the time of each beat.
-3. Post one more photo from another account. Make sure that Sofia gets the memory again, and that the poster does not.
+3. Post one more photo from another account. Make sure that Sofia and the poster get the memory again.
 4. If the run takes more than 3:20, shorten the spoken lines first.
 5. After the last rehearsal, do the steps of "Reset and prepare" again.

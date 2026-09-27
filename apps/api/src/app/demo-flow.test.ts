@@ -256,7 +256,7 @@ test('on cue: /fastforward 7 then /memory posts one week ago at once, before the
   expect(transport.sent.at(-1)?.message).toEqual({ photo: { id: 'photo-maria' }, text: lines.memoryCaption(label, family.moments[0]) });
 });
 
-test('the stage flow: each photo sends the latest photos to every started member but the poster, then one-tap replies, and a jump sends nothing', async () => {
+test('the stage flow: each photo sends the latest photos to every started member, the poster too, then one-tap replies, and a jump sends nothing', async () => {
   const { family, transport, say, whisper, tick } = setup();
   for (const person of [sofia, eleni, alexandros]) await whisper(person, { text: '/start -100' });
   await whisper(sofia, { button: 'set:voice', messageId: transport.sent[0].messageId });
@@ -281,13 +281,12 @@ test('the stage flow: each photo sends the latest photos to every started member
     [castle.messageIds[0], '\u2764'],
   ]);
 
-  // steps 2 and 3: each photo sent the latest photos to every started member but its poster; the last memory is the album of both
+  // steps 2 and 3: each photo sent the latest photos to every started member, its poster too; the last memory is the album of both
   const album = {
     album: [{ photo: { id: 'photo-beach' } }, { photo: { id: 'photo-castle' } }],
     text: lines.weekMemory('Eleni and Alexandros shared a day at the beach.'),
   };
-  expect(toMember(alexandros).slice(-2).map(({ message }) => message.text)).toEqual(["Eleni shared: «Sunday at the beach with the kids»", lines.remindYou]);
-  for (const person of [sofia, eleni]) {
+  for (const person of [sofia, eleni, alexandros]) {
     const id = invitationOf(person)?.id;
     const buttons = [
       { label: 'Tell me more', data: `inv:more:${id}` },
