@@ -1,0 +1,100 @@
+{
+  "generatedAt": "2026-09-27T10:30:53.415Z",
+  "auditedCommit": "90ee3503d44c768081d35d7d67cb3efc77105abb",
+  "webUnchangedSince": "155621d430b55cccc654fc1906990d2f141f174a",
+  "standard": "WCAG 2.1 Level A and Level AA",
+  "axeVersion": "4.13.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  "baseUrl": "http://127.0.0.1:4321",
+  "server": "astro preview of the production build",
+  "gateCommand": "pnpm a11y:web",
+  "gateResult": "pass",
+  "wcag21aaResult": "fail",
+  "gateNote": "The gate ignores axe incomplete results and does not enable high contrast, text resize, a narrow viewport, or the demo past first paint.",
+  "gate": [
+    { "route": "/", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/how-it-works", "consentOpen": { "violations": 0, "incomplete": 1 }, "consentDismissed": { "violations": 0, "incomplete": 1 } },
+    { "route": "/app", "consentOpen": { "violations": 0, "incomplete": 1 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/family", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/my-data", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/privacy", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/terms", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/cookies", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/sitemap", "consentOpen": { "violations": 0, "incomplete": 0 }, "consentDismissed": { "violations": 0, "incomplete": 0 } },
+    { "route": "/404", "consentOpen": { "violations": 0, "incomplete": 1 }, "consentDismissed": { "violations": 0, "incomplete": 1 } }
+  ],
+  "followUps": [
+    {
+      "id": "prose-primary-button",
+      "wcag": "1.4.3",
+      "severity": "serious",
+      "summary": "Get started and Back to Anchor are #443dff on #443dff (1:1) because .prose a overrides .btn-primary.",
+      "files": [
+        "apps/web/src/styles/tokens.css",
+        "apps/web/src/pages/how-it-works.astro",
+        "apps/web/src/pages/404.astro"
+      ],
+      "axe": "incomplete color-contrast, so pnpm a11y:web stays green"
+    },
+    {
+      "id": "high-contrast",
+      "wcag": "1.4.3",
+      "severity": "serious",
+      "summary": "html.a11y-contrast fails color-contrast on all 10 public routes, 174 nodes.",
+      "counts": {
+        "/": 21,
+        "/how-it-works": 15,
+        "/app": 25,
+        "/family": 16,
+        "/my-data": 14,
+        "/privacy": 19,
+        "/terms": 14,
+        "/cookies": 14,
+        "/sitemap": 22,
+        "/404": 14
+      },
+      "pairs": [
+        { "ratio": 3.25, "foreground": "#443dff", "background": "#050316", "examples": "nav and footer links" },
+        { "ratio": 3.25, "foreground": "#050316", "background": "#443dff", "examples": "primary buttons" },
+        { "ratio": 1.21, "foreground": "#f3f2fe", "background": "#dddbff", "examples": "/app progress chips" },
+        { "ratio": 1.3, "foreground": "#fbfbfe", "background": "#dddbff", "examples": "/family Sign in" }
+      ],
+      "files": ["apps/web/src/styles/tokens.css"]
+    },
+    {
+      "id": "high-contrast-text-scale",
+      "wcag": "1.4.3",
+      "severity": "serious",
+      "summary": "With high contrast and text scale 150%, accessibility scale buttons fail. Inactive Default and Larger are #fbfbfe on #dddbff (1.30:1). Pressed Largest is #050316 on #443dff (3.25:1). Both are 17px weight 700 and need 4.5:1.",
+      "files": ["apps/web/src/components/AccessibilityWidget.tsx", "apps/web/src/styles/tokens.css"]
+    },
+    {
+      "id": "demo-voice-and-scroll",
+      "wcag": ["1.4.3", "2.1.1"],
+      "severity": "serious",
+      "summary": "After Send the photo, Yes I'll take part, bring it back, and Use a sample line: .voice-tag is 3.94:1 (#443dff on #cbc8ff) and the private .chat-log fails scrollable-region-focusable.",
+      "files": ["apps/web/src/components/MvpDemo.css", "apps/web/src/components/MvpDemo.tsx"]
+    },
+    {
+      "id": "consent-widget-overlap",
+      "wcag": "1.4.3",
+      "severity": "serious",
+      "summary": "At 390x844 with consent open, .a11y-widget-toggle covers the right side of the consent heading, body, and Privacy link. The 5.75rem lift is shorter than the wrapped banner. At 1280x900 the toggle clears the banner.",
+      "files": ["apps/web/src/components/AccessibilityWidget.css", "apps/web/src/components/ConsentBanner.tsx"]
+    },
+    {
+      "id": "design-ink",
+      "wcag": "1.4.3",
+      "severity": "serious",
+      "inGate": false,
+      "summary": "/designs/ink .ink-action-index is 4.41:1 (#787878 on #ffffff, 12px) on indexes 01, 02, and 03 because of opacity 0.55. Spans are aria-hidden and still visible.",
+      "files": ["apps/web/src/components/designs/ink/ink.css"]
+    }
+  ],
+  "passedBesidesGate": [
+    "Accessibility panel open on / in the default theme: 0 violations",
+    "320px reflow: scrollWidth matched clientWidth on all 10 public routes",
+    "/designs/linen, /designs/slate, /designs/mist: 0 violations",
+    "/designs/quiet gradient: axe incomplete, measured ink on paper is about 14:1 to 16:1"
+  ]
+}
