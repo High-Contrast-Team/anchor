@@ -75,9 +75,9 @@ export function isClosed(bundle: Bundle, realNow: number): boolean {
   const last = bundle.events[bundle.events.length - 1];
   if (realNow - last.at >= BUNDLE_GAP_MS) return true;
   if (last.albumId !== undefined && realNow - last.at < ALBUM_GRACE_MS) return false;
-  // a voice note without a picture closes at once, so its ❤ lands within seconds; a later picture starts its own bundle
-  if (bundle.events.some((event) => event.voice)) return true;
-  return bundle.events.some(hasPicture) && bundle.events.some((event) => wordCount(event.text) > 0);
+  // the user's call of 2026-09-27: a picture or a voice note closes at once, so its ❤ and the memory of the latest photos go out within seconds;
+  // words sent after it start their own bundle, and only a bundle of words waits for a picture
+  return bundle.events.some((event) => hasPicture(event) || event.voice);
 }
 
 export function worthClassifying(bundle: Bundle): boolean {

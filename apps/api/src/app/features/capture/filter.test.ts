@@ -43,10 +43,9 @@ test('isClosed is true 5 minutes after the last message, and not a second before
   expect(isClosed(open, 5 * 60_000)).toBe(true);
 });
 
-test('isClosed waits the 5 minutes for a bare photo, so a text can still join it', () => {
-  const photo = bundle([event({ photo: { id: 'p1' } })]);
-  expect(isClosed(photo, 5 * 60_000 - 1000)).toBe(false);
-  expect(isClosed(photo, 5 * 60_000)).toBe(true);
+test('isClosed is true at once for a bare photo, so it is saved within seconds', () => {
+  expect(isClosed(bundle([event({ photo: { id: 'p1' } })]), 0)).toBe(true);
+  expect(isClosed(bundle([event({ video: { id: 'v1' } })]), 0)).toBe(true);
 });
 
 test('isClosed is true at once for a sealed bundle, which a newer picture from the sender replaced', () => {
