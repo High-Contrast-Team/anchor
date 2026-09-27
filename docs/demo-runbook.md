@@ -37,10 +37,11 @@ Set the choices of each account. Each member sends "settings" to Anchor in priva
 Reset and prepare, before the demo and before each rehearsal:
 
 1. Remove the moments of the rehearsals. Reply "Anchor, forget this" to each rehearsal photo. The memory takes the 5 newest moments of the past 7 days, and the call question names the member who shared the most of them.
-2. Put the staged photo of a child's first day at school on Eleni's phone. Its caption is "Maria's first day of school! She wore her new red backpack."
-3. Put the staged beach photo on Alexandros's phone. Its caption is "Sunday lunch at the beach with the whole family!"
-4. Keep a screen recording of the best rehearsal ready. Play the recording if the live bot fails.
-5. Open the website https://anchor-open26.vercel.app in a browser tab on the Operator's laptop, next to the phones. The screen shows its landing page when the presentation starts.
+2. Keep one old photo in the record: Eleni posts it in the group before the demo, with the year in its caption, such as "Mum and Dad at the beach, 1975". The memory shows the least-seen older photo first as "then", so keep this one old photo only, and never forget it in step 1.
+3. Put the staged photo of a child's first day at school on Eleni's phone. Its caption is "Maria's first day of school! She wore her new red backpack."
+4. Put the staged beach photo on Alexandros's phone. Its caption is "Sunday lunch at the beach with the whole family!"
+5. Keep a screen recording of the best rehearsal ready. Play the recording if the live bot fails.
+6. Open the website https://anchor-open26.vercel.app in a browser tab on the Operator's laptop, next to the phones. The screen shows its landing page when the presentation starts.
 
 Caution: a staged text must name no future action with a time, or a reminder offer appears on stage. A reminder that is still due fires inside the next jump, before the memory. The jump of a rehearsal fires every due reminder, so rehearse after the last reminder test.
 
@@ -62,12 +63,12 @@ The screen shows the landing page of the website. On "Meet Anchor", the Operator
 | --- | --- | --- | --- | --- | --- |
 | 1 | 0:40 | Eleni, then Alexandros | Eleni posts the school photo with its caption. Then Alexandros posts the beach photo with its caption. | Eleni, before: "Maria's first day of school. Mum has to see this." | Anchor reacts with ❤ on each photo within seconds. The group sees no other message. |
 | 2 | 1:05 | Alexandros | On phone 3, pick `/fastforward` in the command menu of the group, add "1", and send it on the Narrator's line. | Narrator: "The next morning." | Nothing new on the screen. Only phone 3 shows "⏩ It's now … on the family clock." |
-| 3 | 1:15 | Anchor | Sends Sofia the album, then one voice note. | Sofia: "Oh, Maria's first day!" | The album caption reads "This week in the family 💛" and a caption that names Eleni and Alexandros. The voice note says the caption, then "What does it remind you of?", with the buttons "Tell me more", "Reply to the family", and "Later, please". |
+| 3 | 1:15 | Anchor | Sends Sofia the album, then one voice note. | Sofia: "Oh, Maria's first day!" | The album shows the 1975 photo first, then the two new photos. Its caption reads "Then and now in the family 💛" and a caption that names Eleni and Alexandros. The voice note says the caption, then "What does it remind you of?", with the buttons "Tell me more", "Reply to the family", "Later, please", and "Call me". |
 | 4 | 1:45 | Sofia | Tap "Reply to the family". | None | The buttons of the same message change at once to "❤️ Sending my love", "😊 That made me smile", and "💛 I miss you all". |
 | 5 | 1:55 | Sofia, then Eleni | Tap "💛 I miss you all". | Eleni, after the group line: "Mum saw them!" | The buttons collapse to "✅ Sent to the family". The group gets "Sofia: «I miss you all 💛»" as a reply to Eleni's photo. |
 | 6 | 2:10 | Anchor | Sends Sofia one voice note. | None | "Shall I ask Eleni to call you?", with the buttons "Yes, ask Eleni" and "No, thanks". |
 | 7 | 2:20 | Sofia | Tap "Yes, ask Eleni". | None | The buttons collapse to "✅ Asked Eleni to call you". The group gets "Eleni, Sofia would love a call from you 💛", with a mention of Eleni. |
-| 8 | 2:30 | Eleni, then Sofia | Eleni replies to "Eleni, Sofia would love a call from you 💛" in the group with "Calling you now, Mum ❤️". Sofia taps "❤️ Love you too". | Eleni, while she types: "Calling you now, Mum." Narrator, after the tap: "Sofia never opened the busy group. The conversation came to her. And when nobody is free, Anchor can ring Sofia and have this same talk by voice." | Sofia gets a voice note: "Eleni: «Calling you now, Mum ❤️»", with "❤️ Love you too", "😊 Can't wait", and "👍 Okay". After the tap, the buttons collapse to "✅ Sent to Eleni", and the group gets "Sofia: «Love you too ❤️»" as a reply to Eleni. |
+| 8 | 2:30 | Eleni, then Sofia | Eleni replies to "Eleni, Sofia would love a call from you 💛" in the group with "Calling you now, Mum ❤️". Sofia taps "❤️ Love you too". | Eleni, while she types: "Calling you now, Mum." Narrator, after the tap: "Sofia never opened the busy group. The conversation came to her. And when nobody is free, Sofia taps 'Call me', and Anchor rings her to have this same talk by voice." | Sofia gets a voice note: "Eleni: «Calling you now, Mum ❤️»", with "❤️ Love you too", "😊 Can't wait", and "👍 Okay". After the tap, the buttons collapse to "✅ Sent to Eleni", and the group gets "Sofia: «Love you too ❤️»" as a reply to Eleni. |
 
 ### The close (3:00, Closer)
 
