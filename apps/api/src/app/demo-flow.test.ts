@@ -343,3 +343,18 @@ test('the stage flow: two posts, /fastforward 1, a private memory for every star
   }
   expect(toGroup()).toHaveLength(posted);
 });
+
+test('a rehearsal jump, /fastforward now, and the stage jump to the same next day still send the memory', async () => {
+  const { transport, say, whisper, tick } = setup();
+  await whisper(sofia, { text: '/start -100' });
+  await say(eleni, { text: 'Sunday at the beach with the kids', photo: { id: 'photo-beach' } });
+  vi.setSystemTime(Date.now() + 2000);
+  await tick();
+  const memories = () => transport.sent.filter(({ chatId, message }) => chatId === sofia.id && message.text === lines.remindYou).length;
+
+  for (const command of ['/fastforward 1', '/fastforward now', '/fastforward 1']) {
+    await say(eleni, { text: command, ephemeral: true });
+    await tick();
+  }
+  expect(memories()).toBe(2);
+});

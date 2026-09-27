@@ -109,6 +109,13 @@ test('fadeOffers removes every offer of the kind that is at least FADE_MS old, s
   expect(family.offers).toEqual([otherKind, fresh]);
 });
 
+test('fadeOffers removes an offer from a jumped day after /fastforward now, because it would never reach FADE_MS', async () => {
+  const { family, member, ctx, at } = setup();
+  at(1_000_000 + 3 * 86_400_000);
+  const future = await send(family, 'share', member, 'm1', () => ({ text: 'from a jumped day' }), ctx);
+  expect(await fadeOffers(family, 'share', 1_000_000, ctx)).toEqual([future]);
+});
+
 test('fadeOffers does nothing, and saves nothing extra, when no offer of the kind has faded', async () => {
   const { family, member, ctx } = setup();
   await sendOffer(family, 'share', member, 'm1', () => ({ text: 'fresh' }), ctx);

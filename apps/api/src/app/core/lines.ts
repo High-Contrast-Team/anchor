@@ -129,7 +129,7 @@ export const lines = {
     (reminded ? "I'll remind you at 09:00 on the day of each one still to come ✍" : 'They have all passed this month.'),
   noBirthdays: (next?: string) =>
     `I don't know of a birthday this month 🙂${next ? ` The next one I know: ${next}.` : ''} When someone mentions a birthday in the family group, I'll offer to remind you.`,
-  fastforwardUsage: 'Send /fastforward and a number of days or a time, for example /fastforward 7 or /fastforward 08:05.',
+  fastforwardUsage: 'Send /fastforward and a number of days, a time, or "now", for example /fastforward 7, /fastforward 08:05, or /fastforward now.',
   calling: "I'm ringing you now 📞",
   // v2, section 4.15: the phone call
   call: {
@@ -175,7 +175,7 @@ export const lines = {
     admins: [
       { command: 'memory', description: 'Share a family memory in the group now' },
       // v2: an ephemeral command, so only the presenter sees it
-      { command: 'fastforward', description: 'Move the family clock, for example /fastforward 7 or /fastforward 08:05', is_ephemeral: true },
+      { command: 'fastforward', description: 'Move the family clock, for example /fastforward 7, /fastforward 08:05, or /fastforward now', is_ephemeral: true },
     ],
     private: [
       { command: 'start', description: 'Choose what I send you' },

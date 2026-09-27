@@ -2,6 +2,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, vi } from 'vitest';
+import { dayIndex } from '../core/clock';
 import { FakeTransport } from '../core/fake-transport';
 import { lines } from '../core/lines';
 import { createRouter } from '../core/router';
@@ -14,6 +15,7 @@ import { fastforward } from './fastforward';
 vi.mock('../model/model', async (importOriginal) => ({ ...(await importOriginal<typeof import('../model/model')>()), ask: vi.fn() }));
 
 const NOW = new Date(2026, 8, 25, 12).getTime();
+const DEFAULT = { moments: true, reminders: true, shares: true, voice: false, call: false };
 
 function setup() {
   const file = join(mkdtempSync(join(tmpdir(), 'anchor-fastforward-')), 'state.json');
@@ -114,6 +116,48 @@ test("an admin's /fastforward 08:05 jumps to the next local 08:05, restarts the 
   expect(transport.sent).toEqual([
     { chatId: '-100', messageId: 'sent-1', message: { text: "⏩ It's now 26 September 2026 at 08:05 on the family clock.", onlyFor: '1' } },
   ]);
+});
+
+test("an admin's /fastforward now sets the family clock back to the real time, restarts the window, and replies only to the presenter", async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 25, 9, 30));
+  try {
+    const { file, transport, router, ctx } = setup();
+    transport.admins.add('1');
+    await router.route(command('/fastforward 3'));
+    await router.route(command('/fastforward now'));
+    expect(NOW + openStore(file).state.clockOffset).toBe(new Date(2026, 8, 25, 9, 30).getTime());
+    expect(ctx.restartWindow).toHaveBeenCalledOnce();
+    expect(transport.sent.at(-1)?.message).toEqual({ text: "⏩ It's now 25 September 2026 at 09:30 on the family clock.", onlyFor: '1' });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('/fastforward now forgets the day markers of the undone days, so their slots fire again, and keeps the markers of the real days', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(2026, 8, 25, 9, 30));
+  try {
+    const { store, transport, router } = setup();
+    transport.admins.add('1');
+    const family = store.family('-100');
+    if (!family) throw new Error('no family');
+    const today = dayIndex(Date.now());
+    const later = new Date(2026, 8, 27, 12).getTime();
+    family.lastMemoryDay = today + 2;
+    family.members.push(
+      { id: '2', name: 'Sofia', started: true, choices: DEFAULT, lastInvitationDay: today + 2, lastCallDay: today + 2, seenAt: later },
+      { id: '3', name: 'Eleni', started: true, choices: DEFAULT, lastInvitationDay: today, lastCallDay: today - 1, seenAt: Date.now() - 1000 },
+    );
+    await router.route(command('/fastforward now'));
+    expect(family.lastMemoryDay).toBeUndefined();
+    expect(family.members).toEqual([
+      { id: '2', name: 'Sofia', started: true, choices: DEFAULT },
+      { id: '3', name: 'Eleni', started: true, choices: DEFAULT, lastInvitationDay: today, lastCallDay: today - 1, seenAt: Date.now() - 1000 },
+    ]);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test('/fastforward to a time still ahead today stays on the same day', async () => {

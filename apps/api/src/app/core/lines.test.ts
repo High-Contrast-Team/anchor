@@ -156,7 +156,7 @@ test('the v2 reminder and call lines read as the design writes them', () => {
   expect(lines.reminderStart('08:00')).toBe("Tap Start, and I'll remind you at 08:00 in our private chat 🙂");
   expect(lines.reminderConfirmed('08:00')).toBe("Done ✍ I'll remind you here at 08:00.");
   expect(lines.reminder('Sofia', 'take my pills')).toBe('⏰ Your reminder. Sofia wrote: «take my pills»');
-  expect(lines.fastforwardUsage).toBe('Send /fastforward and a number of days or a time, for example /fastforward 7 or /fastforward 08:05.');
+  expect(lines.fastforwardUsage).toBe('Send /fastforward and a number of days, a time, or "now", for example /fastforward 7, /fastforward 08:05, or /fastforward now.');
   expect(lines.call.opening('Nikos')).toBe("Hello Nikos, this is Anchor, the family's record keeper. I'm not a person.");
   expect(lines.call.askShare).toBe('Shall I share what you told me with the family?');
   expect(lines.call.reachPerson('Sofia')).toBe("Shall I tell Sofia you'd love a call?");

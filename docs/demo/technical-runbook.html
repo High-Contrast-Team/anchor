@@ -38,10 +38,10 @@
 
   <h2>1 · Before the demo</h2>
   <ol class="check">
-    <li><input type="checkbox" id="d1"><label for="d1">The live bot runs the build of PR 77 or later. See the status above for the current revision.</label></li>
+    <li><input type="checkbox" id="d1"><label for="d1">The live bot runs revision <code>anchor-bot-00028</code> or later, which adds <code>/fastforward now</code>. See the status above for the current revision.</label></li>
     <li><input type="checkbox" id="d2"><label for="d2">Use the group of the demo. A person is a member in one family only, so a new group sends Sofia's private replies to the old family.</label></li>
     <li><input type="checkbox" id="d3"><label for="d3">Anchor is an admin in the group. Anchor sends an ephemeral message only as an admin. Promote Anchor at least one day before, because a move to a supergroup posts <code>intro</code> a second time.</label></li>
-    <li><input type="checkbox" id="d4"><label for="d4">Turn "Remain anonymous" off for Eleni. Anchor ignores commands from an anonymous admin.</label></li>
+    <li><input type="checkbox" id="d4"><label for="d4">Make Alexandros a group admin, and turn "Remain anonymous" off for him. He sends the jump from phone 3, which stays off the screen. Anchor ignores commands from an anonymous admin.</label></li>
   </ol>
 
   <h2>2 · Choices for the stage</h2>
@@ -65,7 +65,7 @@
   <p><code>pnpm deploy:bot</code> keeps the binding, the variables, and the timeout. A full <code>gcloud run deploy</code> with the flags of "Deploy" closes the service again. To close the service on purpose, remove the <code>allUsers</code> binding.</p>
 
   <h2>4 · Reset and prepare</h2>
-  <div class="warn"><b>Caution:</b> a staged text must name no future action with a time, or a reminder offer appears on stage. A reminder that is still due fires inside the next jump, before the memory. After the reset, run one rehearsal jump, so every due reminder fires before the stage.</div>
+  <div class="warn"><b>Caution:</b> a staged text must name no future action with a time, or a reminder offer appears on stage. A reminder that is still due fires inside the next jump, before the memory. The jump of a rehearsal fires every due reminder, so rehearse after the last reminder test.</div>
   <ol class="check">
     <li><input type="checkbox" id="r1"><label for="r1">Remove the moments of the rehearsals. Reply "Anchor, forget this" to each rehearsal photo. The memory takes the 5 newest moments of the past 7 days, and the call question names the member who shared the most of them.</label></li>
     <li><input type="checkbox" id="r3"><label for="r3">Put the staged photo of a child's first day at school on Eleni's phone, with the caption "Maria's first day of school! She wore her new red backpack."</label></li>
@@ -78,13 +78,13 @@
   <div class="warn"><b>One poller per token.</b> The dev bot runs locally with <code>pnpm dev:api</code>, from a worktree whose <code>apps/api/.env.local</code> holds the dev bot token, <code>OPENAI_API_KEY</code>, and <code>TZ=Europe/Athens</code>. Only one process may poll one token.</div>
 
   <h2>6 · Rehearse twice</h2>
-  <div class="warn"><b>/fastforward moves the clock of the whole bot for good.</b> A jump of whole days keeps the hour of the 11:00 and 18:00 slots. From the 7th jump on, each jump reaches an 18:00 slot with a moment that is 7 days old, and a group memory posts. Before the demo, keep the count of jumps on the live bot under 7, or remove every rehearsal moment first.</div>
+  <div class="warn"><b>/fastforward moves the clock of the whole bot until /fastforward now.</b> A jump of whole days keeps the hour of the 11:00 and 18:00 slots. From the 7th jump on, each jump reaches an 18:00 slot with a moment that is 7 days old, and a group memory posts. <code>/fastforward now</code> sets the family clock back to the real time, and the count of jumps starts again. Before the demo, send <code>/fastforward now</code> after the last rehearsal.</div>
   <ol class="check">
     <li><input type="checkbox" id="h1"><label for="h1">Before each rehearsal, do the steps of "Reset and prepare".</label></li>
     <li><input type="checkbox" id="h2"><label for="h2">Run the full script on the live bot with a stopwatch. Write down the time of each beat.</label></li>
     <li><input type="checkbox" id="h3"><label for="h3">Run /fastforward 1 a second time without a new post. Make sure that Sofia gets the memory again, and that the group gets no new post.</label></li>
     <li><input type="checkbox" id="h4"><label for="h4">If the run takes more than 3:30, shorten the spoken lines first.</label></li>
-    <li><input type="checkbox" id="h5"><label for="h5">After the last rehearsal, do the steps of "Reset and prepare" again.</label></li>
+    <li><input type="checkbox" id="h5"><label for="h5">After the last rehearsal, Alexandros sends <code>/fastforward now</code> from the command menu. Then do the steps of "Reset and prepare" again.</label></li>
   </ol>
 
   <h2>7 · Deploy a fix</h2>
