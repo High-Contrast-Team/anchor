@@ -377,21 +377,20 @@ export const invitations: Feature = {
   },
 };
 
-// the user's call of 2026-09-27: every new photo in the family chat sends the latest photos to every started member but the poster, so no
-// clock jump is needed; it ticks after capture, so a photo that capture saves in a tick counts in that tick
+// the user's call of 2026-09-27: every new photo in the family chat sends the latest photos to every started member, the poster too, so a
+// tester sees the memory of an own photo and no clock jump is needed; it ticks after capture, so a photo that capture saves in a tick counts in that tick
 export const latestPhotos: Feature = {
   name: 'latestPhotos',
   async tick(family, window, ctx) {
     const posted = family.moments.filter((moment) => moment.savedAt > window.from && moment.savedAt <= window.to && !moment.sensitive && pictureOf(moment));
     if (!posted.length) return;
-    const posters = new Set(posted.map((moment) => moment.by.id));
     const captions = new Map<string, Promise<string | undefined>>();
     const caption = (moments: Moment[]) => {
       const key = moments.map((moment) => moment.id).join();
       if (!captions.has(key)) captions.set(key, captionFor(lines.weekLabel, moments));
       return captions.get(key);
     };
-    const due = family.members.filter((member) => member.started && member.choices.moments && !posters.has(member.id));
+    const due = family.members.filter((member) => member.started && member.choices.moments);
     await Promise.all(
       due.map(async (member) => {
         const moments = latestOf(family, member, window.to);
