@@ -376,14 +376,15 @@ test('"Later, please" collapses the buttons in place and keeps the memory open f
   expect(nikos().invitation).toBe(invitation);
 });
 
-test('"Tell me more" shows a wait at once, tells the week as a short story, plays the voice notes of the sharers, and answers one tap only', async () => {
+test('"Tell me more" answers at once with the story of the photos, recorded when the memory went out, then the sharers\' voice notes, once', async () => {
   nikos().choices.voice = true;
   add({ description: 'The photo shows a girl at a school gate.', voice: { id: 'voice-57' } });
   add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, savedAt: at(24, 9), text: 'Sunday lunch', title: 'Sunday lunch' });
   add({ id: 'm3', by: eleni, photo: { id: 'photo-98' }, savedAt: at(24, 10), text: 'The cousins sang', title: 'the cousins singing', voice: { id: 'voice-99' } });
   await tickAt(at(25, 11));
-  const story = 'Eleni shared Sunday lunch, where the cousins sang. Sofia shared Maria on her first day at school, at the school gate.';
-  vi.mocked(ask).mockResolvedValue({ story });
+  const [m1, m2, m3] = family.moments;
+  const story = lines.storyText([m2, m3, m1], 'Nikos');
+  expect(speak).toHaveBeenCalledWith(story, STYLE);
   const { id } = nikos().invitation ?? { id: '' };
   vi.mocked(speak).mockClear();
   const sent = transport.sent.length;
@@ -391,10 +392,8 @@ test('"Tell me more" shows a wait at once, tells the week as a short story, play
   const memory = transport.sent[1].messageId;
   await tap(`inv:more:${id}`, memory);
   await tap(`inv:more:${id}`, memory);
-  const [m1, m2, m3] = family.moments;
-  const [prompt] = vi.mocked(ask).mock.calls.at(-1) ?? [];
-  for (const fact of ['Eleni shared: «Sunday lunch»', 'The photo shows a girl at a school gate.', 'at most 4 short sentences']) expect(prompt).toContain(fact);
-  expect(speak).toHaveBeenCalledWith(story, STYLE);
+  expect(speak).not.toHaveBeenCalled();
+  expect(ask).toHaveBeenCalledTimes(1);
   const next = [
     { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
     { label: lines.buttons.dontShowThese, data: `inv:hide:${id}` },
@@ -411,21 +410,22 @@ test('"Tell me more" shows a wait at once, tells the week as a short story, play
   ]);
 });
 
-test('a story with a fact that the moments do not hold, or a failed call, gives way to the fixed story', async () => {
-  silenceWarnings();
-  add({ title: "Maria's first day at school" });
-  add({ id: 'm2', by: eleni, savedAt: at(24, 9), title: 'Sunday lunch' });
+test('"Tell me more" sends the story as text at once when its voice is not ready yet', async () => {
+  nikos().choices.voice = true;
+  vi.mocked(speak).mockReturnValueOnce(new Promise(() => undefined));
+  add();
+  add({ id: 'm2', by: eleni, savedAt: at(24, 9), photo: { id: 'photo-99' }, text: 'Sunday lunch' });
   await tickAt(at(25, 11));
   const { id } = nikos().invitation ?? { id: '' };
-  vi.mocked(ask).mockResolvedValueOnce({ story: 'Eleni shared Sunday lunch with Grandpa Kostas.' });
   await tap(`inv:more:${id}`, transport.sent[1].messageId);
-  const fixed = "Eleni shared Sunday lunch. Sofia shared Maria's first day at school.";
-  expect(transport.sent.at(-1)?.message.text).toBe(fixed);
-
-  await tickAt(at(26, 11));
-  vi.mocked(ask).mockRejectedValueOnce(new Error('down'));
-  await tap(`inv:more:${nikos().invitation?.id}`, transport.sent.at(-1)?.messageId ?? '');
-  expect(transport.sent.at(-1)?.message.text).toBe(fixed);
+  const [m1, m2] = family.moments;
+  expect(transport.sent.at(-1)?.message).toEqual({
+    text: lines.storyText([m2, m1], 'Nikos'),
+    buttons: [
+      { label: lines.buttons.replyToFamily, data: `inv:reply:${id}` },
+      { label: lines.buttons.dontShowThese, data: `inv:hide:${id}` },
+    ],
+  });
 });
 
 test('"Don\'t show me these again" hides the moments for this member only, and the family still sees them', async () => {

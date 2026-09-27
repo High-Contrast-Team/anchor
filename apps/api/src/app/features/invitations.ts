@@ -3,12 +3,12 @@ import { randomUUID } from 'node:crypto';
 import { dateOf, lines } from '../core/lines';
 import { shortId } from '../core/offers';
 import { byPriority } from '../core/priority';
-import { tell } from '../core/tell';
+import { tell, VOICE_STYLE } from '../core/tell';
 import type { Button, Context, Family, Feature, Incoming, Invitation, Media, Member, Moment, Outgoing, Person, Transport } from '../core/types';
-import { ask, valid } from '../model/model';
+import { ask, speak, valid } from '../model/model';
 import { react } from './capture/capture';
 import { ADDRESS, asksAnchor, pictureOf, privateIntent, wordCount } from './capture/filter';
-import { captionFor, storyFor } from './memories';
+import { captionFor } from './memories';
 import { nextSteps } from './members';
 
 const MAX_MOMENTS = 5;
@@ -88,6 +88,7 @@ async function deliver(family: Family, member: Member, moments: Moment[], ctx: C
   const lead = [...moments].reverse().find((moment) => moment.by.id === sharer?.id) ?? moments[moments.length - 1];
   const invitation: Invitation = { id: shortId(), momentId: lead.id, momentIds: moments.map((moment) => moment.id), shareAsked: false, helped: false };
   member.invitation = invitation;
+  prepareStory(member, moments);
   member.seenAt = Math.max(member.seenAt ?? 0, ...moments.map((moment) => moment.savedAt));
   for (const moment of moments) moment.returns[member.id] = { count: (moment.returns[member.id]?.count ?? 0) + 1 };
   ctx.store.save();
@@ -125,13 +126,32 @@ export async function sendMe(family: Family, member: Member, ctx: Context) {
   await tell(family, member, { text: lines.nothingNew, buttons: nextSteps(member, 'sendMe') }, ctx);
 }
 
+// "Tell me more" answers at once: its voice is recorded when the memory goes out, keyed by the member
+// ponytail: in memory, so a tap after a restart sends the story as text
+const stories = new Map<string, { text: string; wav?: Buffer }>();
+
+function prepareStory(member: Member, moments: Moment[]) {
+  const story: { text: string; wav?: Buffer } = { text: lines.storyText(moments, member.name) };
+  stories.set(member.id, story);
+  if (!member.choices.voice) return;
+  speak(story.text, VOICE_STYLE)
+    .then((wav) => (story.wav = wav))
+    .catch((error) => logger.warn(`The story voice for member ${member.id} failed: ${error}`));
+}
+
 async function tellMore(invitation: Invitation, moments: Moment[], family: Family, member: Member, ctx: Context) {
   const buttons = [
     { label: lines.buttons.replyToFamily, data: `inv:reply:${invitation.id}` },
     { label: lines.buttons.dontShowThese, data: `inv:hide:${invitation.id}` },
   ];
   const voices = moments.flatMap((moment) => (moment.voice ? [moment.voice] : []));
-  await tell(family, member, { text: await storyFor(moments), ...(voices.length ? {} : { buttons }) }, ctx);
+  const text = lines.storyText(moments, member.name);
+  const prepared = stories.get(member.id);
+  const message: Outgoing = { text, ...(voices.length ? {} : { buttons }) };
+  if (prepared?.text === text && prepared.wav) await tell(family, member, { ...message, voice: { wav: prepared.wav } }, ctx);
+  else if (!member.choices.voice) await tell(family, member, message, ctx);
+  // the voice is not ready, so the words go out at once instead of a wait for a new clip
+  else await ctx.transport(family.id).send(member.id, message).catch((error) => logger.warn(`The story for member ${member.id} failed: ${error}`));
   for (const [index, voice] of voices.entries()) await tell(family, member, { voice, ...(index === voices.length - 1 ? { buttons } : {}) }, ctx);
 }
 
