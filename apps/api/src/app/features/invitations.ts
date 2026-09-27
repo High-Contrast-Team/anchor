@@ -146,7 +146,14 @@ async function tap(action: string, event: Incoming, invitation: Invitation, fami
     ctx.store.save();
     await change([]);
   } else if (action === 'more') {
+    // the voice note takes a few seconds, so the button answers at once and a repeated tap sends nothing twice
+    if (invitation.toldMore) return;
+    invitation.toldMore = true;
+    ctx.store.save();
+    const [, ...next] = memoryButtons(invitation.id);
+    await change([{ label: lines.buttons.oneMoment, data: `inv:done:${invitation.id}` }, ...next]);
     await tellMore(invitation, moments, family, member, ctx);
+    await change(next);
   } else if (action === 'reply') {
     if (!invitation.said) await change(replyButtons(invitation.id));
   } else if (action === 'later') {

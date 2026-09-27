@@ -99,6 +99,7 @@ export type Invitation = {
   helped: boolean; // the gentle help went out once
   said?: boolean; // the one-tap reply went to the group
   askedCall?: boolean; // the call request went to the group
+  toldMore?: boolean; // "Tell me more" went out
 };
 
 export type Choices = { moments: boolean; reminders: boolean; shares: boolean; voice: boolean; call: boolean }; // v2, section 4.11

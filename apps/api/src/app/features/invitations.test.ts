@@ -407,7 +407,7 @@ test('"Later, please" collapses the buttons in place and keeps the memory open f
   expect(nikos().invitation).toBe(invitation);
 });
 
-test('"Tell me more" names each moment, then plays the voice notes of the sharers with the next two buttons', async () => {
+test('"Tell me more" shows a wait at once, names each moment, plays the voice notes of the sharers, and answers one tap only', async () => {
   nikos().choices.voice = true;
   add({ description: 'The photo shows a girl at a school gate.', voice: { id: 'voice-57' } });
   add({ id: 'm2', by: eleni, photo: { id: 'photo-99' }, savedAt: at(24, 9), text: 'Sunday lunch' });
@@ -417,7 +417,9 @@ test('"Tell me more" names each moment, then plays the voice notes of the sharer
   vi.mocked(speak).mockClear();
   const sent = transport.sent.length;
 
-  await tap(`inv:more:${id}`, transport.sent[1].messageId);
+  const memory = transport.sent[1].messageId;
+  await tap(`inv:more:${id}`, memory);
+  await tap(`inv:more:${id}`, memory);
   const [m1, m2, m3] = family.moments;
   expect(speak).toHaveBeenCalledWith(lines.aboutMoments([m2, m3, m1], true), STYLE);
   const next = [
@@ -429,7 +431,11 @@ test('"Tell me more" names each moment, then plays the voice notes of the sharer
     ['7', { voice: { id: 'voice-99' } }],
     ['7', { voice: { id: 'voice-57' }, buttons: next }],
   ]);
-  expect(edits()).toEqual([]);
+  const [, reply, later] = memoryButtons(id);
+  expect(edits()).toEqual([
+    ['7', memory, { buttons: [{ label: '⏳ One moment…', data: `inv:done:${id}` }, reply, later] }],
+    ['7', memory, { buttons: [reply, later] }],
+  ]);
 });
 
 test('"Don\'t show me these again" hides the moments for this member only, and the family still sees them', async () => {
@@ -441,7 +447,7 @@ test('"Don\'t show me these again" hides the moments for this member only, and t
   const more = transport.sent[2].messageId;
 
   await tap(`inv:hide:${id}`, more);
-  expect(edits()).toEqual([['7', more, { buttons: doneButton(id, lines.done.hidden) }]]);
+  expect(edits().at(-1)).toEqual(['7', more, { buttons: doneButton(id, lines.done.hidden) }]);
   expect(saved()?.members[0].hidden).toEqual(['m2', 'm1']);
   expect(nikos().invitation).toBeUndefined();
   expect(moment.sensitive).toBe(false);
