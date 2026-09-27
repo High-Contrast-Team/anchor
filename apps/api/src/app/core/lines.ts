@@ -31,7 +31,7 @@ function sharedBy(moment: Moment, max = 600): string {
 // "Nikos", "Nikos and Eleni", or "Nikos, Eleni, and Maria"
 const list = new Intl.ListFormat('en');
 const and = (names: string[]) => list.format(names);
-const WEEK_LABEL = 'This week in the family';
+const WEEK_LABEL = 'The latest from the family';
 const sharers = (moments: Moment[]) => and([...new Set(moments.map((moment) => moment.by.name))]);
 
 export type ChoiceName = 'moments' | 'reminders' | 'shares' | 'voice' | 'call';
@@ -68,8 +68,6 @@ export const lines = {
   sharedBy,
   // the private memory of the spike of 2026-09-26: an album of the week, then one message with the buttons
   weekLabel: WEEK_LABEL,
-  // the spike of 2026-09-27: an older photo of the record leads the memory of the week
-  thenLabel: 'Then and now in the family',
   weekMemory: (caption: string, label = WEEK_LABEL) => `${label} 💛\n${caption}`,
   weekShared: (moments: Moment[]) => `${sharers(moments)} shared ${moments.length} moments.`,
   remindYou: 'What does it remind you of?',
