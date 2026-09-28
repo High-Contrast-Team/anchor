@@ -1,0 +1,156 @@
+{
+  "standard": "WCAG 2.1 Level A and AA",
+  "auditedAt": "2026-09-28",
+  "commit": "de8afb8ed64f53645b7c9741acb40ba8e18e75b2",
+  "appsWebLastCommit": "1e37212",
+  "triggerCommitTouchesWeb": false,
+  "baseUrl": "http://127.0.0.1:4321",
+  "build": "astro preview of apps/web static build",
+  "axeCore": "4.13.0",
+  "tags": ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"],
+  "gate": {
+    "command": "pnpm a11y:web",
+    "script": "apps/web/scripts/a11y-check.mjs",
+    "viewport": "1280x720",
+    "routes": ["/", "/how-it-works", "/app", "/family", "/my-data", "/privacy", "/terms", "/cookies", "/sitemap", "/404"],
+    "states": ["consent-open", "consent-dismissed"],
+    "violations": 0,
+    "result": "pass",
+    "note": "The script ignores axe incomplete results, so 1:1 contrast on prose primary buttons does not fail the gate."
+  },
+  "overall": "gate-pass-standard-not-met",
+  "passed": [
+    "Default theme axe violations: 0 on 10 public routes x 2 consent states",
+    "320px reflow: no horizontal overflow on the 10 public routes",
+    "Design studies with 0 violations: /designs/linen, /designs/mist, /designs/slate"
+  ],
+  "findings": [
+    {
+      "id": "prose-primary-buttons",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "axe": "incomplete",
+      "routes": ["/how-it-works", "/404"],
+      "summary": "Get started and Back to Anchor render as primary on primary.",
+      "measure": {
+        "foreground": "#443dff",
+        "background": "#443dff",
+        "ratio": 1,
+        "required": 4.5,
+        "fontSize": "15px",
+        "fontWeight": "600"
+      },
+      "files": [
+        "apps/web/src/styles/tokens.css",
+        "apps/web/src/pages/how-it-works.astro",
+        "apps/web/src/pages/404.astro"
+      ],
+      "cause": ".prose a overrides .btn-primary color and weight."
+    },
+    {
+      "id": "high-contrast",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "axe": "violation",
+      "routes": ["/", "/how-it-works", "/app", "/family", "/my-data", "/privacy", "/terms", "/cookies", "/sitemap", "/404"],
+      "nodeCount": 174,
+      "nodeCountByRoute": {
+        "/": 21,
+        "/how-it-works": 15,
+        "/app": 25,
+        "/family": 16,
+        "/my-data": 14,
+        "/privacy": 19,
+        "/terms": 14,
+        "/cookies": 14,
+        "/sitemap": 22,
+        "/404": 14
+      },
+      "pairs": [
+        { "foreground": "#443dff", "background": "#050316", "ratio": 3.26, "required": 4.5, "examples": "nav links, footer links, in-page links at 15px" },
+        { "foreground": "#050316", "background": "#443dff", "ratio": 3.26, "required": 4.5, "examples": "primary buttons, consent Accept, pressed Largest text-size button" },
+        { "foreground": "#443dff", "background": "#443dff", "ratio": 1, "required": 4.5, "examples": "focused Skip to content" },
+        { "foreground": "#fbfbfe", "background": "#dddbff", "ratio": 1.3, "required": 4.5, "examples": "Essential only, inactive text-size buttons, Reset all" },
+        { "foreground": "#f3f2fe", "background": "#dddbff", "ratio": 1.21, "required": 4.5, "examples": "/app chips, panel headings, empty chat lines" },
+        { "foreground": "#084740", "background": "#050316", "ratio": 1.93, "required": 4.5, "examples": ".anchor .who after the demo shows Anchor lines" }
+      ],
+      "files": [
+        "apps/web/src/styles/tokens.css",
+        "apps/web/src/components/AccessibilityWidget.css",
+        "apps/web/src/components/MvpDemo.css"
+      ]
+    },
+    {
+      "id": "consent-widget-overlap",
+      "criterion": "content obscured at 390px",
+      "impact": "serious",
+      "viewport": "390x844",
+      "summary": "The Accessibility button covers the consent heading, body, and Privacy link while the banner is open.",
+      "boxes": {
+        "toggle": { "x": 239, "y": 708, "w": 139, "h": 44 },
+        "banner": { "x": 0, "y": 708, "w": 390, "h": 137 }
+      },
+      "clearsAt": ["1280x720", "1280x800", "1280x900", "768x900"],
+      "files": ["apps/web/src/components/AccessibilityWidget.css"],
+      "cause": "body.consent-open .a11y-widget lifts only 5.75rem. The wrapped banner is about 137px."
+    },
+    {
+      "id": "demo-voice-tag",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "axe": "violation",
+      "route": "/app",
+      "path": ["Send the photo", "Yes, I’ll take part", "A little later — bring it back", "Use a sample line"],
+      "summary": "Voice note label fails contrast on the Nikos bubble.",
+      "measure": {
+        "selector": ".voice-tag",
+        "foreground": "#443dff",
+        "background": "#cbc8ff",
+        "ratio": 3.94,
+        "required": 4.5,
+        "fontSize": "12.48px",
+        "fontWeight": "700"
+      },
+      "files": ["apps/web/src/components/MvpDemo.css"]
+    },
+    {
+      "id": "demo-chat-log-keyboard",
+      "criterion": "2.1.1",
+      "impact": "serious",
+      "axe": "violation",
+      "rule": "scrollable-region-focusable",
+      "route": "/app",
+      "summary": "The private chat log scrolls and is not keyboard focusable after the sample line.",
+      "files": ["apps/web/src/components/MvpDemo.tsx"]
+    },
+    {
+      "id": "design-ink",
+      "criterion": "1.4.3",
+      "impact": "serious",
+      "axe": "violation",
+      "route": "/designs/ink",
+      "inGate": false,
+      "nodeCount": 3,
+      "measure": {
+        "selector": ".ink-action-index",
+        "foreground": "#787878",
+        "background": "#ffffff",
+        "ratio": 4.41,
+        "required": 4.5,
+        "fontSize": "12px",
+        "fontWeight": "normal"
+      },
+      "note": "aria-hidden, still visible."
+    },
+    {
+      "id": "design-quiet-gradient",
+      "criterion": "1.4.3",
+      "impact": "needs-manual-check",
+      "axe": "incomplete",
+      "route": "/designs/quiet",
+      "inGate": false,
+      "nodeCount": 6,
+      "summary": "Background gradient prevented an automatic contrast score, including h1.quiet-brand."
+    }
+  ]
+}
